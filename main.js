@@ -10,8 +10,9 @@ const config = require('./config');
 // -- -- --
 
 // Remove HTML tags from a string
-const convertHTMLEntities = (str) => {
-    return he.decode(str);
+function convertHTMLEntities(html) {
+  // Ensure we always pass a string to he.decode (it calls .replace internally)
+  return he.decode(String(html ?? ""));
 }
 
 // Remove special characters from a string
