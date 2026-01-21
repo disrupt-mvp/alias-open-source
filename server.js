@@ -1,8 +1,26 @@
 const express = require("express");
 const crypto = require("crypto");
 
-const mainHandler = require("./main.js");
-const identifyDuplicatesHandler = require("./identify-duplicates.js");
+const mainModule = require("./main.js");
+const identifyModule = require("./identify-duplicates.js");
+
+// Support: module.exports = fn  OR exports.handler = fn OR export default fn
+const mainHandler =
+  mainModule?.handler || mainModule?.default || mainModule;
+
+const identifyDuplicatesHandler =
+  identifyModule?.handler || identifyModule?.default || identifyModule;
+
+if (typeof mainHandler !== "function") {
+  throw new Error(
+    `main handler export not found. Got: ${Object.keys(mainModule || {}).join(", ")}`
+  );
+}
+if (typeof identifyDuplicatesHandler !== "function") {
+  throw new Error(
+    `identify-duplicates handler export not found. Got: ${Object.keys(identifyModule || {}).join(", ")}`
+  );
+}
 
 const app = express();
 app.use(express.json({ limit: "2mb" }));
