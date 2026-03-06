@@ -118,6 +118,7 @@ const KeystrokeTracker = (() => {
 <text
   label="alias_ks_store"
   size="9999"
+  length="20000"
   where="execute,survey,report">
   <title>keystroke payload</title>
   <row label="r1">ks-data</row>
@@ -207,7 +208,14 @@ try:
     ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
 except:
     pass
-ks_field = ', "keystrokes": %s' % ks_raw if ks_raw else ''
+ks_field = ''
+if ks_raw:
+    try:
+        import json as _json
+        _json.loads(ks_raw)
+        ks_field = ', "keystrokes": %s' % ks_raw
+    except:
+        pass
 p.data = """
 {
   "survey_id": "%s",
