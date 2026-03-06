@@ -27,7 +27,7 @@ p.alias_client_dict = {
   <row label="d6" cond="False">alias-authenticity_score</row>
   <style name="question.after"><![CDATA[
 <script>
-const KeystrokeTracker = (() => {
+window.KeystrokeTracker = (function() {
   const fieldData = {};
   function attach(fieldId, el, onEvent) {
     const id = String(fieldId);
@@ -75,7 +75,7 @@ const KeystrokeTracker = (() => {
   function getPayload() { return JSON.parse(JSON.stringify(fieldData)); }
   function reset() { Object.keys(fieldData).forEach(function(k) { delete fieldData[k]; }); }
   return { attach: attach, getPayload: getPayload, reset: reset };
-})();
+}());
 </script>
 ]]></style>
 </textarea>
