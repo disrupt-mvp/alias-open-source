@@ -210,7 +210,7 @@ exports.handler = async function (event, context) {
         const checks = {};
         uniqueIds.forEach(id => { checks[id] = [] });
         const effortRatings = {};
-        const failureTypes = ["Profane", "Off-topic", 'Gibberish', 'GPT'];
+        const failureTypes = ["profane", "off-topic", "gibberish", "gpt"];
 
         // Loop through the results and categorize them
         Object.keys(questions).forEach(id => {
