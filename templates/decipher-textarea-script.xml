@@ -1,0 +1,371 @@
+<exec sst="0">
+p.alias_question_labels = ['T1','T2','T3']
+p.alias_client_dict = {
+    'responses': {},
+    'questions': {},
+    'survey_id': 'test_cases',
+    'participant_id': uuid,
+    'num_non_empty': 0,
+    'question_labels': p.alias_question_labels[:],
+    'payload_labels': []
+}
+</exec>
+
+<!-- ======================================================
+     KEYSTROKE TRACKER — injected inline, no external load
+     ====================================================== -->
+<html label="ks_tracker_js" where="survey">
+<![CDATA[
+<script>
+const KeystrokeTracker = (() => {
+  const fieldData = {};
+  function attach(fieldId, el) {
+    const id = String(fieldId);
+    fieldData[id] = { events: [] };
+    let startTime = null;
+    function ts() {
+      return startTime !== null ? Math.round(performance.now() - startTime) : 0;
+    }
+    el.addEventListener('focus', () => {
+      if (startTime === null) {
+        startTime = performance.now();
+        fieldData[id].events.push({ t: 0, type: 'f', val: null });
+      } else {
+        fieldData[id].events.push({ t: ts(), type: 'f', val: null });
+      }
+    }, { passive: true });
+    el.addEventListener('blur', () => {
+      fieldData[id].events.push({ t: ts(), type: 'b', val: null });
+    }, { passive: true });
+    el.addEventListener('keydown', (e) => {
+      fieldData[id].events.push({ t: ts(), type: 'k', val: e.key });
+    }, { passive: true });
+    el.addEventListener('paste', (e) => {
+      var len = 0;
+      try {
+        var text = (e.clipboardData || window.clipboardData).getData('text');
+        len = text ? text.length : 0;
+      } catch (_) {}
+      fieldData[id].events.push({ t: ts(), type: 'p', val: len });
+    }, { passive: true });
+    el.addEventListener('copy', () => {
+      var len = 0;
+      try {
+        var sel = window.getSelection();
+        len = sel ? sel.toString().length : 0;
+      } catch (_) {}
+      fieldData[id].events.push({ t: ts(), type: 'c', val: len });
+    }, { passive: true });
+  }
+  function getPayload() { return JSON.parse(JSON.stringify(fieldData)); }
+  function reset() { Object.keys(fieldData).forEach(function(k) { delete fieldData[k]; }); }
+  return { attach: attach, getPayload: getPayload, reset: reset };
+})();
+</script>
+]]>
+</html>
+
+<textarea
+  label="T1"
+  height="10"
+  optional="0"
+  width="50">
+  <title>What would you say the message of the adverts were?</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+  <row label="d1" cond="False">alias-flagged</row>
+  <row label="d2" cond="False">alias-checks</row>
+  <row label="d3" cond="False">alias-group</row>
+  <row label="d4" cond="False">alias-effort</row>
+  <row label="d5" cond="False">alias-status</row>
+</textarea>
+<textarea
+  label="T2"
+  height="10"
+  optional="0"
+  width="50">
+  <title>What would you say the message of the adverts were?</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+  <row label="d1" cond="False">alias-flagged</row>
+  <row label="d2" cond="False">alias-checks</row>
+  <row label="d3" cond="False">alias-group</row>
+  <row label="d4" cond="False">alias-effort</row>
+  <row label="d5" cond="False">alias-status</row>
+</textarea>
+<textarea
+  label="T3"
+  height="10"
+  optional="1"
+  width="50">
+  <title>What would you say the message of the adverts were?</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+  <row label="d1" cond="False">alias-flagged</row>
+  <row label="d2" cond="False">alias-checks</row>
+  <row label="d3" cond="False">alias-group</row>
+  <row label="d4" cond="False">alias-effort</row>
+  <row label="d5" cond="False">alias-status</row>
+</textarea>
+
+<!-- ======================================================
+     Attach keystroke trackers + serialise on submit
+     Hidden text field stores the JSON payload for the exec block
+     ====================================================== -->
+<text
+  label="alias_ks_store"
+  size="9999"
+  where="execute,survey,report"
+  cond="False">
+  <title>keystroke payload</title>
+  <row label="r1">ks-data</row>
+</text>
+
+<html label="ks_attach_js" where="survey">
+<![CDATA[
+<script>
+(function() {
+  function attachAll() {
+    var fields = [
+      { id: 0, elId: 'T1_response' },
+      { id: 1, elId: 'T2_response' },
+      { id: 2, elId: 'T3_response' }
+    ];
+    fields.forEach(function(f) {
+      var el = document.getElementById(f.elId);
+      if (el) KeystrokeTracker.attach(f.id, el);
+    });
+    var form = document.querySelector('form');
+    if (form) {
+      form.addEventListener('submit', function() {
+        try {
+          var hidden = document.getElementById('alias_ks_store_r1');
+          if (hidden) hidden.value = JSON.stringify(KeystrokeTracker.getPayload());
+        } catch(e) {}
+      }, { capture: true });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachAll);
+  } else {
+    attachAll();
+  }
+})();
+</script>
+]]>
+</html>
+
+<suspend/>
+<exec>
+bearer_token = "6e6fee6f536cf8a907b52c7d897e9a55"
+p.headers = {
+    "Authorization": "Bearer %s" % bearer_token,
+    "Content-Type": "application/json"
+}
+def safe_string(val):
+    if val is None:
+        return ''
+    try:
+        return unicode(val)
+    except:
+        try:
+            return str(val)
+        except:
+            return ''
+def jescape(s):
+    if s is None:
+        s = ""
+    try:
+        s = str(s)
+    except:
+        s = ""
+    s = s.replace("\\", "\\\\")
+    s = s.replace('"', '\\"')
+    s = s.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
+    return s
+questions_json = []
+responses_json = []
+payload_labels = []
+num_non_empty = 0
+for label in p.alias_client_dict['question_labels']:
+    q = allQuestions[label]
+    val = safe_string(q.val)
+    p.alias_client_dict['responses'][label] = val
+    p.alias_client_dict['questions'][label] = label
+    # ONLY send non-empty responses
+    if val.strip():
+        questions_json.append('"%s"' % jescape(label))
+        responses_json.append('"%s"' % jescape(val))
+        payload_labels.append(label)
+        num_non_empty += 1
+p.alias_client_dict['payload_labels'] = payload_labels
+p.alias_client_dict['num_non_empty'] = num_non_empty
+# Read keystroke payload from hidden field
+ks_raw = ''
+try:
+    ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
+except:
+    pass
+ks_field = ', "keystrokes": %s' % ks_raw if ks_raw else ''
+p.data = """
+{
+  "survey_id": "%s",
+  "participant_id": "%s",
+  "questions": [%s],
+  "responses": [%s],
+  "include_probes": true%s
+}
+""" % (
+    jescape(p.alias_client_dict['survey_id']),
+    jescape(p.alias_client_dict['participant_id']),
+    ','.join(questions_json),
+    ','.join(responses_json),
+    ks_field
+)
+p.data = p.data.strip()
+print p.data
+</exec>
+<logic
+  label="alias_api_test"
+  cond="p.alias_client_dict['num_non_empty'] != 0"
+  api:data="p.data"
+  api:headers="p.headers"
+  api:method="POST"
+  api:url="https://open-qa.onrender.com/v1/check"
+  sst="0"
+  uses="api.1"/>
+<exec sst="0">
+def checks_array_to_string(array):
+    return ', '.join(map(str, array)) if array else "None"
+def stringify(val):
+    if val is None:
+        return "None"
+    try:
+        return unicode(val)
+    except:
+        try:
+            return str(val)
+        except:
+            return "None"
+raw = alias_api_test.r
+if isinstance(raw, dict):
+    r = raw
+else:
+    r = {}
+checks_map = r.get('checks', {})
+groups_map = r.get('response_groups', {})
+effort_map = r.get('effort_ratings', {})
+auth_map = r.get('authenticity_scores', {})
+probe_map = r.get('followup_probes', {})
+status_val = 'UNKNOWN'
+try:
+    status_val = alias_api_test.status
+except:
+    try:
+        status_val = alias_api_test.status_code
+    except:
+        try:
+            status_val = alias_api_test.code
+        except:
+            status_val = 'UNKNOWN'
+# Reset all questions first
+for label in p.alias_client_dict['question_labels']:
+    allQuestions[label].d1.val = False
+    allQuestions[label].d2.val = "None"
+    allQuestions[label].d3.val = 0
+    allQuestions[label].d4.val = "NA"
+    allQuestions[label].d5.val = stringify(status_val)
+# Punch API results
+for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
+    key = str(i)
+    flag_array = checks_map.get(key, [])
+    flag_str = checks_array_to_string(flag_array)
+    allQuestions[label].d1.val = flag_str != "None"
+    allQuestions[label].d2.val = flag_str
+    allQuestions[label].d3.val = groups_map.get(key, 0)
+    allQuestions[label].d4.val = effort_map.get(key, 'NA')
+    allQuestions[label].d5.val = stringify(status_val)
+# Store probe texts (mapped back to question label position)
+probe_texts = ['', '', '']
+for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
+    key = str(i)
+    probe_text = stringify(probe_map.get(key, ''))
+    if probe_text in ('None', 'null', 'none', ''):
+        probe_text = ''
+    idx = p.alias_client_dict['question_labels'].index(label)
+    if 0 <= idx < 3:
+        probe_texts[idx] = probe_text
+# Survey-level holder
+potentia_alias_data.d0.val = stringify(raw)
+potentia_alias_data.d1.val = r.get('error', False)
+potentia_alias_data.d2.val = stringify(effort_map)
+potentia_alias_data.d3.val = stringify(checks_map)
+potentia_alias_data.d4.val = stringify(groups_map)
+potentia_alias_data.d5.val = p.alias_client_dict['survey_id']
+potentia_alias_data.d6.val = p.alias_client_dict['participant_id']
+potentia_alias_data.d7.val = p.alias_client_dict['num_non_empty']
+potentia_alias_data.d8.val = stringify(status_val)
+potentia_alias_data.d9.val = stringify(auth_map)
+potentia_alias_data.d10.val = probe_texts[0]
+potentia_alias_data.d11.val = probe_texts[1]
+potentia_alias_data.d12.val = probe_texts[2]
+print raw
+print status_val
+</exec>
+<text
+  label="potentia_alias_data"
+  size="120"
+  where="execute,survey,report">
+  <title>alias data holder</title>
+  <row label="d0">alias-raw</row>
+  <row label="d1">alias-error</row>
+  <row label="d2">alias-effort_ratings</row>
+  <row label="d3">alias-checks</row>
+  <row label="d4">alias-response_groups</row>
+  <row label="d5">alias-survey_id</row>
+  <row label="d6">alias-participant_id</row>
+  <row label="d7">alias-num_non_empty</row>
+  <row label="d8">alias-status</row>
+  <row label="d9">alias-authenticity_scores</row>
+  <row label="d10">alias-probe_T1</row>
+  <row label="d11">alias-probe_T2</row>
+  <row label="d12">alias-probe_T3</row>
+</text>
+
+<!-- ======================================================
+     PROBE PAGE — shown only when the API returns follow-up
+     questions. All probes are optional. If no probes are
+     generated, all three conditions are false and Decipher
+     auto-advances past this page.
+     ====================================================== -->
+<textarea
+  label="P1"
+  height="10"
+  optional="1"
+  width="50"
+  cond="allQuestions['potentia_alias_data'].d10.val not in ('', 'None')">
+  <title>[pipe: potentia_alias_data.d10]</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+</textarea>
+<textarea
+  label="P2"
+  height="10"
+  optional="1"
+  width="50"
+  cond="allQuestions['potentia_alias_data'].d11.val not in ('', 'None')">
+  <title>[pipe: potentia_alias_data.d11]</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+</textarea>
+<textarea
+  label="P3"
+  height="10"
+  optional="1"
+  width="50"
+  cond="allQuestions['potentia_alias_data'].d12.val not in ('', 'None')">
+  <title>[pipe: potentia_alias_data.d12]</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+</textarea>
+<suspend/>
