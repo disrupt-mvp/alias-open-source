@@ -125,29 +125,37 @@ window.KeystrokeTracker = (function() {
   <style name="question.after"><![CDATA[
 <script>
 (function() {
-  // Synchronous — runs inline right after alias_ks_store renders.
-  // At this exact moment alias_ks_store's input is the last input[type="text"]
-  // in the DOM before Decipher appends any further navigation inputs.
   var earlyInputs = document.querySelectorAll('input[type="text"]');
+  console.log('[alias-ks] sync marker: found', earlyInputs.length, 'text inputs');
   if (earlyInputs.length) {
     earlyInputs[earlyInputs.length - 1].setAttribute('data-ks-store', '1');
+    console.log('[alias-ks] marked input:', earlyInputs[earlyInputs.length - 1].name || earlyInputs[earlyInputs.length - 1].id || '(no name/id)');
+  } else {
+    console.warn('[alias-ks] WARNING: no input[type="text"] found — alias_ks_store not marked');
   }
 
   function attachAll() {
-    // Use the stable marker set above — immune to later DOM changes
     var hidden = document.querySelector('[data-ks-store="1"]');
+    console.log('[alias-ks] attachAll: hidden=', hidden, 'window.KeystrokeTracker=', typeof window.KeystrokeTracker);
+    if (!hidden) { console.warn('[alias-ks] WARNING: hidden field not found'); return; }
+    if (!window.KeystrokeTracker) { console.warn('[alias-ks] WARNING: window.KeystrokeTracker not defined'); return; }
 
     function syncToHidden() {
-      if (hidden) hidden.value = JSON.stringify(KeystrokeTracker.getPayload());
+      if (hidden) {
+        var payload = JSON.stringify(window.KeystrokeTracker.getPayload());
+        hidden.value = payload;
+        console.log('[alias-ks] syncToHidden: wrote', payload.length, 'chars to hidden field');
+      }
     }
 
     document.querySelectorAll('textarea').forEach(function(el, idx) {
-      KeystrokeTracker.attach(idx, el, syncToHidden);
+      window.KeystrokeTracker.attach(idx, el, syncToHidden);
     });
+    console.log('[alias-ks] attached to', document.querySelectorAll('textarea').length, 'textareas');
     var form = document.querySelector('form');
     if (form) {
       form.addEventListener('submit', function() {
-        try { syncToHidden(); } catch(e) {}
+        try { syncToHidden(); } catch(e) { console.error('[alias-ks] submit sync error:', e); }
       }, { capture: true });
     }
   }
@@ -213,13 +221,15 @@ try:
     ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
 except:
     pass
+print 'DBG ks_raw len=' + str(len(ks_raw)) + ' val=' + repr(ks_raw[:120] if ks_raw else '')
 ks_field = ''
 if ks_raw:
     try:
         import json as aliasjson
         aliasjson.loads(ks_raw)
         ks_field = ', "keystrokes": %s' % ks_raw
-    except:
+    except Exception as ks_err:
+        print 'DBG ks_raw json error: ' + str(ks_err)
         pass
 p.data = """
 {
