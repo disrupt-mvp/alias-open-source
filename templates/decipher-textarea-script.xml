@@ -144,6 +144,8 @@ window.KeystrokeTracker = (function() {
       if (hidden) {
         var payload = JSON.stringify(window.KeystrokeTracker.getPayload());
         hidden.value = payload;
+        try { hidden.dispatchEvent(new Event('input', { bubbles: true })); } catch(_) {}
+        try { hidden.dispatchEvent(new Event('change', { bubbles: true })); } catch(_) {}
         console.log('[alias-ks] syncToHidden: wrote', payload.length, 'chars to hidden field');
       }
     }
@@ -155,7 +157,10 @@ window.KeystrokeTracker = (function() {
     var form = document.querySelector('form');
     if (form) {
       form.addEventListener('submit', function() {
-        try { syncToHidden(); } catch(e) { console.error('[alias-ks] submit sync error:', e); }
+        try {
+          syncToHidden();
+          console.log('[alias-ks] final submit value len=', hidden.value.length, 'preview=', hidden.value.slice(0, 60));
+        } catch(e) { console.error('[alias-ks] submit sync error:', e); }
       }, { capture: true });
     }
   }
@@ -218,9 +223,9 @@ p.alias_client_dict['num_non_empty'] = num_non_empty
 # Read keystroke payload from hidden field
 ks_raw = ''
 try:
-    ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
-except:
-    pass
+    ks_raw = safe_string(allQuestions['alias_ks_store'].val).strip()
+except Exception as ks_exc:
+    print 'DBG ks_raw exception: ' + str(ks_exc)
 print 'DBG ks_raw len=' + str(len(ks_raw)) + ' val=' + repr(ks_raw[:120] if ks_raw else '')
 ks_field = ''
 if ks_raw:
