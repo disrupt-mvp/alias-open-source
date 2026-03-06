@@ -24,6 +24,7 @@ p.alias_client_dict = {
   <row label="d3" cond="False">alias-group</row>
   <row label="d4" cond="False">alias-effort</row>
   <row label="d5" cond="False">alias-status</row>
+  <row label="d6" cond="False">alias-authenticity_score</row>
   <style name="question.after"><![CDATA[
 <script>
 const KeystrokeTracker = (() => {
@@ -91,6 +92,7 @@ const KeystrokeTracker = (() => {
   <row label="d3" cond="False">alias-group</row>
   <row label="d4" cond="False">alias-effort</row>
   <row label="d5" cond="False">alias-status</row>
+  <row label="d6" cond="False">alias-authenticity_score</row>
 </textarea>
 <textarea
   label="T3"
@@ -105,6 +107,7 @@ const KeystrokeTracker = (() => {
   <row label="d3" cond="False">alias-group</row>
   <row label="d4" cond="False">alias-effort</row>
   <row label="d5" cond="False">alias-status</row>
+  <row label="d6" cond="False">alias-authenticity_score</row>
 </textarea>
 
 <!-- ======================================================
@@ -273,6 +276,7 @@ for label in p.alias_client_dict['question_labels']:
     allQuestions[label].d3.val = 0
     allQuestions[label].d4.val = "NA"
     allQuestions[label].d5.val = stringify(status_val)
+    allQuestions[label].d6.val = "NA"
 # Punch API results
 for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
     key = str(i)
@@ -283,6 +287,7 @@ for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
     allQuestions[label].d3.val = groups_map.get(key, 0)
     allQuestions[label].d4.val = effort_map.get(key, 'NA')
     allQuestions[label].d5.val = stringify(status_val)
+    allQuestions[label].d6.val = stringify(auth_map.get(key, 'NA'))
 # Store probe texts (mapped back to question label position)
 probe_texts = ['', '', '']
 for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
