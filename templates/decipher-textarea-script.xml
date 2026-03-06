@@ -211,8 +211,8 @@ except:
 ks_field = ''
 if ks_raw:
     try:
-        import json as _json
-        _json.loads(ks_raw)
+        import json as aliasjson
+        aliasjson.loads(ks_raw)
         ks_field = ', "keystrokes": %s' % ks_raw
     except:
         pass
