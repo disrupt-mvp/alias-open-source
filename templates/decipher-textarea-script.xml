@@ -125,17 +125,17 @@ const KeystrokeTracker = (() => {
   <style name="question.after"><![CDATA[
 <script>
 (function() {
+  // Synchronous — runs inline right after alias_ks_store renders.
+  // At this exact moment alias_ks_store's input is the last input[type="text"]
+  // in the DOM before Decipher appends any further navigation inputs.
+  var earlyInputs = document.querySelectorAll('input[type="text"]');
+  if (earlyInputs.length) {
+    earlyInputs[earlyInputs.length - 1].setAttribute('data-ks-store', '1');
+  }
+
   function attachAll() {
-    // Target alias_ks_store's input. Decipher names form inputs using the
-    // question label, e.g. "alias_ks_store_r1". Fall back to size="9999" attr,
-    // then to the last input[type="text"] on the page.
-    var hidden = document.querySelector('input[name*="alias_ks_store"]') ||
-                 document.querySelector('input[name*="ks_store"]') ||
-                 document.querySelector('input[size="9999"]') ||
-                 (function() {
-                   var t = document.querySelectorAll('input[type="text"]');
-                   return t.length ? t[t.length - 1] : null;
-                 }());
+    // Use the stable marker set above — immune to later DOM changes
+    var hidden = document.querySelector('[data-ks-store="1"]');
 
     function syncToHidden() {
       if (hidden) hidden.value = JSON.stringify(KeystrokeTracker.getPayload());
@@ -151,6 +151,7 @@ const KeystrokeTracker = (() => {
       }, { capture: true });
     }
   }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', attachAll);
   } else {
@@ -212,7 +213,6 @@ try:
     ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
 except:
     pass
-print 'alias_ks_raw len=' + str(len(ks_raw)) + ' preview=' + repr(ks_raw[:80] if ks_raw else '')
 ks_field = ''
 if ks_raw:
     try:
