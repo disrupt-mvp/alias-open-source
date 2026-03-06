@@ -126,12 +126,16 @@ const KeystrokeTracker = (() => {
 <script>
 (function() {
   function attachAll() {
-    // Robust selector: Decipher may generate positional IDs like ans5026.0.0
-    // rather than label-based ones, so fall back progressively
-    // Decipher uses positional IDs (e.g. ans5026.0.0) not label-based IDs.
-    // alias_ks_store is the only <text> input on this page; T1/T2/T3 are textareas.
-    var textInputs = document.querySelectorAll('input[type="text"]');
-    var hidden = textInputs.length ? textInputs[textInputs.length - 1] : null;
+    // Target alias_ks_store's input. Decipher names form inputs using the
+    // question label, e.g. "alias_ks_store_r1". Fall back to size="9999" attr,
+    // then to the last input[type="text"] on the page.
+    var hidden = document.querySelector('input[name*="alias_ks_store"]') ||
+                 document.querySelector('input[name*="ks_store"]') ||
+                 document.querySelector('input[size="9999"]') ||
+                 (function() {
+                   var t = document.querySelectorAll('input[type="text"]');
+                   return t.length ? t[t.length - 1] : null;
+                 }());
 
     function syncToHidden() {
       if (hidden) hidden.value = JSON.stringify(KeystrokeTracker.getPayload());
@@ -208,6 +212,7 @@ try:
     ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
 except:
     pass
+print 'alias_ks_raw len=' + str(len(ks_raw)) + ' preview=' + repr(ks_raw[:80] if ks_raw else '')
 ks_field = ''
 if ks_raw:
     try:
