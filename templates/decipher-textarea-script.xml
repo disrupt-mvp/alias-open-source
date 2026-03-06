@@ -11,60 +11,6 @@ p.alias_client_dict = {
 }
 </exec>
 
-<!-- ======================================================
-     KEYSTROKE TRACKER — injected inline, no external load
-     ====================================================== -->
-<html label="ks_tracker_js" where="survey">
-<![CDATA[
-<script>
-const KeystrokeTracker = (() => {
-  const fieldData = {};
-  function attach(fieldId, el) {
-    const id = String(fieldId);
-    fieldData[id] = { events: [] };
-    let startTime = null;
-    function ts() {
-      return startTime !== null ? Math.round(performance.now() - startTime) : 0;
-    }
-    el.addEventListener('focus', () => {
-      if (startTime === null) {
-        startTime = performance.now();
-        fieldData[id].events.push({ t: 0, type: 'f', val: null });
-      } else {
-        fieldData[id].events.push({ t: ts(), type: 'f', val: null });
-      }
-    }, { passive: true });
-    el.addEventListener('blur', () => {
-      fieldData[id].events.push({ t: ts(), type: 'b', val: null });
-    }, { passive: true });
-    el.addEventListener('keydown', (e) => {
-      fieldData[id].events.push({ t: ts(), type: 'k', val: e.key });
-    }, { passive: true });
-    el.addEventListener('paste', (e) => {
-      var len = 0;
-      try {
-        var text = (e.clipboardData || window.clipboardData).getData('text');
-        len = text ? text.length : 0;
-      } catch (_) {}
-      fieldData[id].events.push({ t: ts(), type: 'p', val: len });
-    }, { passive: true });
-    el.addEventListener('copy', () => {
-      var len = 0;
-      try {
-        var sel = window.getSelection();
-        len = sel ? sel.toString().length : 0;
-      } catch (_) {}
-      fieldData[id].events.push({ t: ts(), type: 'c', val: len });
-    }, { passive: true });
-  }
-  function getPayload() { return JSON.parse(JSON.stringify(fieldData)); }
-  function reset() { Object.keys(fieldData).forEach(function(k) { delete fieldData[k]; }); }
-  return { attach: attach, getPayload: getPayload, reset: reset };
-})();
-</script>
-]]>
-</html>
-
 <textarea
   label="T1"
   height="10"
@@ -78,6 +24,59 @@ const KeystrokeTracker = (() => {
   <row label="d3" cond="False">alias-group</row>
   <row label="d4" cond="False">alias-effort</row>
   <row label="d5" cond="False">alias-status</row>
+  <style name="question.after"><![CDATA[
+<script>
+const KeystrokeTracker = (() => {
+  const fieldData = {};
+  function attach(fieldId, el, onEvent) {
+    const id = String(fieldId);
+    fieldData[id] = { events: [] };
+    let startTime = null;
+    function ts() {
+      return startTime !== null ? Math.round(performance.now() - startTime) : 0;
+    }
+    el.addEventListener('focus', () => {
+      if (startTime === null) {
+        startTime = performance.now();
+        fieldData[id].events.push({ t: 0, type: 'f', val: null });
+      } else {
+        fieldData[id].events.push({ t: ts(), type: 'f', val: null });
+      }
+      if (onEvent) onEvent();
+    }, { passive: true });
+    el.addEventListener('blur', () => {
+      fieldData[id].events.push({ t: ts(), type: 'b', val: null });
+      if (onEvent) onEvent();
+    }, { passive: true });
+    el.addEventListener('keydown', (e) => {
+      fieldData[id].events.push({ t: ts(), type: 'k', val: e.key });
+      if (onEvent) onEvent();
+    }, { passive: true });
+    el.addEventListener('paste', (e) => {
+      var len = 0;
+      try {
+        var text = (e.clipboardData || window.clipboardData).getData('text');
+        len = text ? text.length : 0;
+      } catch (_) {}
+      fieldData[id].events.push({ t: ts(), type: 'p', val: len });
+      if (onEvent) onEvent();
+    }, { passive: true });
+    el.addEventListener('copy', () => {
+      var len = 0;
+      try {
+        var sel = window.getSelection();
+        len = sel ? sel.toString().length : 0;
+      } catch (_) {}
+      fieldData[id].events.push({ t: ts(), type: 'c', val: len });
+      if (onEvent) onEvent();
+    }, { passive: true });
+  }
+  function getPayload() { return JSON.parse(JSON.stringify(fieldData)); }
+  function reset() { Object.keys(fieldData).forEach(function(k) { delete fieldData[k]; }); }
+  return { attach: attach, getPayload: getPayload, reset: reset };
+})();
+</script>
+]]></style>
 </textarea>
 <textarea
   label="T2"
@@ -109,23 +108,30 @@ const KeystrokeTracker = (() => {
 </textarea>
 
 <!-- ======================================================
-     Attach keystroke trackers + serialise on submit
-     Hidden text field stores the JSON payload for the exec block
+     Keystroke store — visible so alias_ks_store_r1 renders
+     with a predictable ID. Real-time sync via onEvent callback
+     makes the value update as the respondent types.
      ====================================================== -->
 <text
   label="alias_ks_store"
   size="9999"
-  where="execute,survey,report"
-  cond="False">
+  where="execute,survey,report">
   <title>keystroke payload</title>
   <row label="r1">ks-data</row>
-</text>
-
-<html label="ks_attach_js" where="survey">
-<![CDATA[
+  <style name="question.after"><![CDATA[
 <script>
 (function() {
   function attachAll() {
+    // Robust selector: Decipher may generate positional IDs like ans5026.0.0
+    // rather than label-based ones, so fall back progressively
+    var hidden = document.getElementById('alias_ks_store_r1')
+      || document.querySelector('#alias_ks_store input[type="text"]')
+      || document.querySelector('input[name*="alias_ks_store"]');
+
+    function syncToHidden() {
+      if (hidden) hidden.value = JSON.stringify(KeystrokeTracker.getPayload());
+    }
+
     var fields = [
       { id: 0, elId: 'T1_response' },
       { id: 1, elId: 'T2_response' },
@@ -133,15 +139,12 @@ const KeystrokeTracker = (() => {
     ];
     fields.forEach(function(f) {
       var el = document.getElementById(f.elId);
-      if (el) KeystrokeTracker.attach(f.id, el);
+      if (el) KeystrokeTracker.attach(f.id, el, syncToHidden);
     });
     var form = document.querySelector('form');
     if (form) {
       form.addEventListener('submit', function() {
-        try {
-          var hidden = document.getElementById('alias_ks_store_r1');
-          if (hidden) hidden.value = JSON.stringify(KeystrokeTracker.getPayload());
-        } catch(e) {}
+        try { syncToHidden(); } catch(e) {}
       }, { capture: true });
     }
   }
@@ -152,8 +155,8 @@ const KeystrokeTracker = (() => {
   }
 })();
 </script>
-]]>
-</html>
+]]></style>
+</text>
 
 <suspend/>
 <exec>
