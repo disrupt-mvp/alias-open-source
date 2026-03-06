@@ -1,5 +1,5 @@
 const OpenAI = require("openai");
-const { groupResponsePrompt, effortPrompt, sentimentPrompt, themePrompt, piiPrompt, probePrompt, translationPrompt } = require('./prompts');
+const { groupResponsePrompt, effortPrompt, sentimentPrompt, themePrompt, piiPrompt, probePrompt, translationPrompt, humanityScorePrompt } = require('./prompts');
 const config = require('../config');
 
 // OpenAI setup
@@ -161,6 +161,45 @@ const openAITranslate = async (userResponse) => {
     return response;
 }
 
+// Call OpenAI API to score human authenticity (0-100) using keystroke features + content checks
+const openAIHumanityScore = async (question, userResponse, keystrokeFeatures, existingChecks, effortRating) => {
+
+    if (userResponse === '') return { result: '50' };
+
+    const checksStr = (existingChecks && existingChecks.length) ? existingChecks.join(', ') : 'None';
+    const effort = effortRating !== undefined && effortRating !== null ? `${effortRating}/10` : 'N/A';
+
+    let keystrokeStr;
+    if (!keystrokeFeatures) {
+        keystrokeStr = 'null (no telemetry captured)';
+    } else {
+        const f = keystrokeFeatures;
+        keystrokeStr = [
+            `- IKI mean: ${f.ikiMean !== null ? f.ikiMean + 'ms' : 'null'}  CV: ${f.ikiCv !== null ? f.ikiCv : 'null'}`,
+            `- Gross WPM: ${f.grossWpm !== null ? f.grossWpm : 'null'}`,
+            `- Backspace rate: ${f.backspaceRate}  Backspace count: ${f.backspaceCount}  Correction present: ${f.correctionPresent}`,
+            `- Paste events: ${f.pasteCount}  Total pasted chars: ${f.pasteCharTotal}  Large paste present: ${f.largePastePresent}  Paste char fraction: ${f.pasteCharFraction}`,
+            `- Focus/blur cycles: ${f.focusCount}/${f.blurCount}  Tab away present: ${f.tabAwayPresent}  Paste after blur: ${f.pasteAfterBlur}`,
+            `- Time to first keystroke: ${f.timeToFirstKeystroke !== null ? f.timeToFirstKeystroke + 'ms' : 'null'}  Total duration: ${f.totalDurationMs}ms`,
+            `- Burst count: ${f.burstCount}`,
+            `- Suspect flags: regularTiming=${f.suspectRegularTiming}  highSpeed=${f.suspectHighSpeed}  aiPaste=${f.suspectAIPaste}  farming=${f.suspectSurveyFarming}`,
+        ].join('\n');
+    }
+
+    const userText = `Question: ${question}\nResponse: ${userResponse}\nContent checks: ${checksStr}\nEffort rating: ${effort}\n\nKeystroke features:\n${keystrokeStr}`;
+
+    const messages = [
+        ...humanityScorePrompt,
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": userText }]
+        }
+    ];
+
+    const response = await callOpenAI(messages, 5);
+    return response;
+}
+
 // Call the OpenAI API
 const callOpenAI = async (messages, maxTokens = 10) => {
 
@@ -176,4 +215,4 @@ const callOpenAI = async (messages, maxTokens = 10) => {
     return { result: content };
 };
 
-module.exports = { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe, openAITranslate };
+module.exports = { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe, openAITranslate, openAIHumanityScore };

@@ -97,7 +97,10 @@ app.get("/", (req, res) =>
 // Main endpoint: run all checks
 app.post("/v1/check", requireAuth, async (req, res) => {
   try {
-    const cleanedBody = coerceToStringsDeep(req.body);
+    // Exempt `keystrokes` from coerceToStringsDeep — timestamps must remain integers
+    const { keystrokes, ...restBody } = req.body || {};
+    const cleanedBody = coerceToStringsDeep(restBody);
+    if (keystrokes) cleanedBody.keystrokes = keystrokes;
     const event = { body: JSON.stringify(cleanedBody), headers: req.headers };
 
     const out = await mainHandler(event, {});

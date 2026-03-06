@@ -943,5 +943,79 @@ module.exports = {
             "role": "assistant",
             "content": [{ "type": "text", "text": "None" }]
         }
+    ],
+
+    humanityScorePrompt: [
+        {
+            "role": "system",
+            "content": [{
+                "type": "text",
+                "text": "You are an expert behavioural analyst helping identify fraudulent or automated survey responses. For each case you receive the survey question, the response text, content analysis flags already applied by a separate system, and keystroke telemetry features captured while the participant typed (or null if no telemetry is available).\n\nOutput ONLY a single integer from 0 to 100 representing the probability that this response was written by a genuine human participant paying attention. Output nothing else — no explanation, no punctuation, just the integer.\n\n100 = definitely a genuine, attentive human\n0   = definitely automated, AI-generated, or fraudulent\n\nScore ranges:\n80–100  Clear human: natural typing rhythm, corrections present, moderate speed, behaviour consistent with effort rating\n60–79   Likely human: minor suspicion (fast typing, few corrections) but no strong red flags\n40–59   Uncertain: content quality seems human but behavioural signals are missing, ambiguous, or mixed\n20–39   Likely non-human: paste-dominated, no corrections, suspicious timing regularity, or behaviour mismatches content quality\n0–19    Almost certainly non-human: bot-regular timing, AI-paste pattern, instant response, or content flagged as GPT with matching behavioural signals\n\nWeighting guidance:\n- If keystroke features are null, rely on content checks and effort rating only; use 50 as the default unless content checks reveal GPT or Gibberish flags\n- If GPT content flag is set AND keystroke features show large paste with no corrections: score 5–15\n- If content is Low-effort AND survey-farming signals are present: score 15–35\n- If bot-regular timing (ikiCv < 0.15 with >= 5 keystrokes): score 5–20 regardless of content\n- Natural corrections (backspaceRate 0.05–0.25) are a strong positive human signal\n- Time to first keystroke > 500ms is a mild positive signal (human pausing to think)\n- Multiple focus/blur cycles without paste events suggest the participant was thinking, not copy-pasting: mild positive signal\n- Very high WPM (> 120) with no corrections is suspicious even if content seems valid\n- A single large paste event (> 100 chars) with no prior typing and pasteAfterBlur is a strong non-human signal"
+            }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What do you like most about the product?\nResponse: i realy like how easy it is to use, dosnt take long to figure out\nContent checks: None\nEffort rating: 5/10\n\nKeystroke features:\n- IKI mean: 142ms  CV: 0.67\n- Gross WPM: 48\n- Backspace rate: 0.12  Backspace count: 3  Correction present: true\n- Paste events: 0  Total pasted chars: 0  Large paste present: false\n- Focus/blur cycles: 1/0  Tab away present: false  Paste after blur: false\n- Time to first keystroke: 820ms  Total duration: 9400ms\n- Burst count: 2\n- Suspect flags: regularTiming=false  highSpeed=false  aiPaste=false  farming=false" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "82" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: How satisfied are you with our service?\nResponse: Very satisfied with the overall service quality\nContent checks: None\nEffort rating: 4/10\n\nKeystroke features:\n- IKI mean: 18ms  CV: 0.04\n- Gross WPM: 210\n- Backspace rate: 0  Backspace count: 0  Correction present: false\n- Paste events: 0  Total pasted chars: 0  Large paste present: false\n- Focus/blur cycles: 1/0  Tab away present: false  Paste after blur: false\n- Time to first keystroke: 12ms  Total duration: 1800ms\n- Burst count: 1\n- Suspect flags: regularTiming=true  highSpeed=true  aiPaste=false  farming=false" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "4" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What improvements would you suggest for our platform?\nResponse: There are several key improvements that could significantly enhance the platform's usability and effectiveness. First, implementing a more intuitive navigation system would help users locate features more efficiently. Second, incorporating advanced analytics capabilities would provide deeper insights for data-driven decision making. Third, streamlining the onboarding process with interactive tutorials would reduce the learning curve for new users.\nContent checks: Automated test: GPT\nEffort rating: 9/10\n\nKeystroke features:\n- IKI mean: null  CV: null\n- Gross WPM: null\n- Backspace rate: 0  Backspace count: 0  Correction present: false\n- Paste events: 1  Total pasted chars: 387  Large paste present: true  Paste char fraction: 0.95\n- Focus/blur cycles: 2/1  Tab away present: true  Paste after blur: true\n- Time to first keystroke: null  Total duration: 5200ms\n- Burst count: 0\n- Suspect flags: regularTiming=false  highSpeed=false  aiPaste=true  farming=false" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "8" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Describe your experience using our app today.\nResponse: it was ok\nContent checks: Low-effort\nEffort rating: 2/10\n\nKeystroke features:\n- IKI mean: 95ms  CV: 0.55\n- Gross WPM: null\n- Backspace rate: 0  Backspace count: 0  Correction present: false\n- Paste events: 0  Total pasted chars: 0  Large paste present: false\n- Focus/blur cycles: 1/1  Tab away present: false  Paste after blur: false\n- Time to first keystroke: 310ms  Total duration: 3200ms\n- Burst count: 1\n- Suspect flags: regularTiming=false  highSpeed=false  aiPaste=false  farming=true" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "28" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Can you walk us through how you typically use our product in a normal week?\nResponse: I mainly use it on monday mornings to prep for the week — I'll go through the dashboard, check on the main metrics, flag anything that looks off and leave a note for the team. Midd week I somtimes dip in to check if anything changed. Then friday I do a quick review before EOD. Its become kind of a habbit now, wouldnt wanna miss it\nContent checks: None\nEffort rating: 8/10\n\nKeystroke features:\n- IKI mean: 131ms  CV: 0.81\n- Gross WPM: 52\n- Backspace rate: 0.19  Backspace count: 14  Correction present: true\n- Paste events: 0  Total pasted chars: 0  Large paste present: false\n- Focus/blur cycles: 1/0  Tab away present: false  Paste after blur: false\n- Time to first keystroke: 1840ms  Total duration: 38000ms\n- Burst count: 3\n- Suspect flags: regularTiming=false  highSpeed=false  aiPaste=false  farming=false" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "94" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What do you value most about the brand?\nResponse: Good quality and fair pricing\nContent checks: None\nEffort rating: 5/10\n\nKeystroke features: null (no telemetry captured)" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "50" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What would you tell a friend about us?\nResponse: Honestly one of the better options out there if you need something reliable and not too expensive. Worth checking out.\nContent checks: None\nEffort rating: 6/10\n\nKeystroke features:\n- IKI mean: null  CV: null\n- Gross WPM: null\n- Backspace rate: 0  Backspace count: 0  Correction present: false\n- Paste events: 1  Total pasted chars: 112  Large paste present: true  Paste char fraction: 0.98\n- Focus/blur cycles: 2/1  Tab away present: true  Paste after blur: true\n- Time to first keystroke: null  Total duration: 6100ms\n- Burst count: 0\n- Suspect flags: regularTiming=false  highSpeed=false  aiPaste=true  farming=false" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "22" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: How has the product changed the way you work?\nResponse: It has made collaboration much easier — I pasted in a template we use and then edited it to fit our workflow, saves a lot of back and forth\nContent checks: None\nEffort rating: 6/10\n\nKeystroke features:\n- IKI mean: 138ms  CV: 0.61\n- Gross WPM: 44\n- Backspace rate: 0.08  Backspace count: 5  Correction present: true\n- Paste events: 1  Total pasted chars: 45  Large paste present: false  Paste char fraction: 0.35\n- Focus/blur cycles: 1/0  Tab away present: false  Paste after blur: false\n- Time to first keystroke: 950ms  Total duration: 21000ms\n- Burst count: 2\n- Suspect flags: regularTiming=false  highSpeed=false  aiPaste=false  farming=false" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "71" }]
+        }
     ]
 }
