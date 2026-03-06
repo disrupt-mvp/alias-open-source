@@ -793,6 +793,82 @@ module.exports = {
         }
     ],
 
+    translationPrompt: [
+        {
+            "role": "system",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "You are a translation assistant. Detect the language of the text provided. If the text is already in English, return it exactly as-is without any changes. If the text is in any other language, translate it to natural, fluent English. Never add commentary, explanations, labels, or quotation marks. Only return the (possibly translated) text."
+                }
+            ]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "El anuncio comunica que la marca se posiciona como una opción confiable para los consumidores." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "The advertisement communicates that the brand positions itself as a reliable option for consumers." }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "La publicité met en avant la simplicité et la commodité du produit dans la vie quotidienne." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "The advertisement highlights the simplicity and convenience of the product in daily life." }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Die Werbung betont, dass das Produkt leicht in den Alltag integriert werden kann." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "The advertisement emphasises that the product can be easily integrated into everyday life." }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "製品が日常生活に簡単に溶け込めることを広告は強調しています。" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "The advertisement emphasises that the product blends seamlessly into daily life." }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "The product is really good quality and I would definitely buy it again." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "The product is really good quality and I would definitely buy it again." }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "asdfgh jkl qwerty" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "asdfgh jkl qwerty" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Мне понравилась реклама, она показывает продукт с лучшей стороны." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "I liked the advertisement, it shows the product in the best light." }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "O anúncio transmite uma mensagem de confiança e qualidade para os consumidores modernos." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "The advertisement conveys a message of trust and quality for modern consumers." }]
+        }
+    ],
+
     probePrompt: [
         {
             "role": "system",

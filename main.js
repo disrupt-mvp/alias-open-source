@@ -1,6 +1,6 @@
 const he = require('he');
 const { levenshteinDistance, longestCommonSubstring } = require('./helpers/string-utils');
-const { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe } = require('./helpers/openai-utils');
+const { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe, openAITranslate } = require('./helpers/openai-utils');
 const { checkForCrossDuplicateResponses, checkIfMatch } = require('./helpers/cross-duplicate-utils');
 const { isJsonString, parseQueryString, parseJSON } = require('./helpers/json-utils');
 const config = require('./config');
@@ -99,7 +99,7 @@ exports.handler = async function (event, context) {
 
         // Parse the body
         problemParsingResponse = true;
-        let { questions, survey_id, participant_id, responses, low_effort_threshold, include_sentiment, include_themes, include_pii, include_probes } = parsingFunction(event.body);
+        let { questions, survey_id, participant_id, responses, low_effort_threshold, include_sentiment, include_themes, include_pii, include_probes, include_translation } = parsingFunction(event.body);
         const lowEffortThreshold = low_effort_threshold || 0;
         problemParsingResponse = false;
 
@@ -109,12 +109,12 @@ exports.handler = async function (event, context) {
             .map(([k]) => k);
         if (missing.length) throw new Error(`Missing ${missing.join(', ')}`);
 
-        // If type of questions or is not object, raise error
+        // If type of questions or responses is not object/array, raise error
         const nonObjects = Object.entries({ questions, responses })
             .filter(([, v]) => v === null || typeof v !== 'object')
             .map(([k]) => k);
         if (nonObjects.length) {
-            throw new Error(`The following fields must be objects: ${nonObjects.join(', ')}`);
+            throw new Error(`The following fields must be objects or arrays: ${nonObjects.join(', ')}`);
         }
 
         // If survey_id or participant_id are not strings, raise error
@@ -142,33 +142,49 @@ exports.handler = async function (event, context) {
             cleanedResponses[id] = cleanFinalStateString(responses[id]);
         });
 
-        // Start duplication promise
+        // Start duplication promise (uses original responses — string-distance works across languages)
         const duplicateResponsePromise = checkForCrossDuplicateResponses(cleanedResponses, survey_id);
 
-        // Start categorization but do not wait for it to complete
         const uniqueIds = Object.keys(questions);
+
+        // Translation step: run first in parallel so translated text is available for all AI analysis
+        const translationResults = include_translation ? await Promise.all(
+            uniqueIds.map(id =>
+                openAITranslate(responses[id]).then(({ result }) => ({ id, result }))
+            )
+        ) : [];
+
+        // Build effectiveResponses: translated text when requested, original otherwise
+        const effectiveResponses = Object.assign({}, responses);
+        if (include_translation) {
+            translationResults.forEach(({ id, result }) => {
+                if (result) effectiveResponses[id] = result;
+            });
+        }
+
+        // Start AI analysis using effectiveResponses (translated when requested)
         const categorizationPromises = uniqueIds.map(id => {
-            return openAIGroupResponse(questions[id], responses[id]).then(({ result }) => { return { id, result }} );
+            return openAIGroupResponse(questions[id], effectiveResponses[id]).then(({ result }) => { return { id, result }} );
         });
         const lowEffortPromises = uniqueIds.map(id => {
-            return openAIEffortCategorization(questions[id], responses[id]).then(({ result }) => { return { id, result }} );
+            return openAIEffortCategorization(questions[id], effectiveResponses[id]).then(({ result }) => { return { id, result }} );
         });
 
         // Optional QA feature promises (only launched if requested)
         const sentimentPromises = include_sentiment ? uniqueIds.map(id => {
-            return openAISentimentAnalysis(questions[id], responses[id]).then(({ result }) => ({ id, result }));
+            return openAISentimentAnalysis(questions[id], effectiveResponses[id]).then(({ result }) => ({ id, result }));
         }) : [];
 
         const themePromises = include_themes ? uniqueIds.map(id => {
-            return openAIThemeExtraction(questions[id], responses[id]).then(({ result }) => ({ id, result }));
+            return openAIThemeExtraction(questions[id], effectiveResponses[id]).then(({ result }) => ({ id, result }));
         }) : [];
 
         const piiPromises = include_pii ? uniqueIds.map(id => {
-            return openAIPIIDetection(questions[id], responses[id]).then(({ result }) => ({ id, result }));
+            return openAIPIIDetection(questions[id], effectiveResponses[id]).then(({ result }) => ({ id, result }));
         }) : [];
 
         const probePromises = include_probes ? uniqueIds.map(id => {
-            return openAIGenerateProbe(questions[id], responses[id]).then(({ result }) => ({ id, result }));
+            return openAIGenerateProbe(questions[id], effectiveResponses[id]).then(({ result }) => ({ id, result }));
         }) : [];
 
         const selfDuplicateResponses = checkForSelfDuplicateResponses(cleanedResponses);
@@ -266,6 +282,10 @@ exports.handler = async function (event, context) {
             })
         ) : undefined;
 
+        const translations = include_translation ? Object.fromEntries(
+            translationResults.map(({ id, result }) => [id, result || responses[id]])
+        ) : undefined;
+
         const returnBody = {
             error: false,
             checks,
@@ -275,6 +295,7 @@ exports.handler = async function (event, context) {
             ...(themes !== undefined && { themes }),
             ...(piiFlags !== undefined && { pii_flags: piiFlags }),
             ...(followupProbes !== undefined && { followup_probes: followupProbes }),
+            ...(translations !== undefined && { translations }),
         };
 
         return {

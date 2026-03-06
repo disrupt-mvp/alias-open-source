@@ -1,5 +1,5 @@
 const OpenAI = require("openai");
-const { groupResponsePrompt, effortPrompt, sentimentPrompt, themePrompt, piiPrompt, probePrompt } = require('./prompts');
+const { groupResponsePrompt, effortPrompt, sentimentPrompt, themePrompt, piiPrompt, probePrompt, translationPrompt } = require('./prompts');
 const config = require('../config');
 
 // OpenAI setup
@@ -139,6 +139,28 @@ const openAIGenerateProbe = async (question, userResponse) => {
     return response;
 }
 
+// Call OpenAI API to detect language and translate to English (returns text unchanged if already English)
+const openAITranslate = async (userResponse) => {
+
+    if (userResponse === '') return { result: '' };
+
+    const messages = [
+        ...translationPrompt,
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": userResponse
+                }
+            ]
+        }
+    ];
+
+    const response = await callOpenAI(messages, 500);
+    return response;
+}
+
 // Call the OpenAI API
 const callOpenAI = async (messages, maxTokens = 10) => {
 
@@ -154,4 +176,4 @@ const callOpenAI = async (messages, maxTokens = 10) => {
     return { result: content };
 };
 
-module.exports = { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe };
+module.exports = { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe, openAITranslate };
