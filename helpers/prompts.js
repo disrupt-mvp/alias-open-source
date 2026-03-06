@@ -579,5 +579,293 @@ module.exports = {
                 }
             ]
         }
+    ],
+
+    sentimentPrompt: [
+        {
+            "role": "system",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "You are an expert research assistant analyzing open-ended survey responses. Given a survey question and the participant's response, classify the overall sentiment of the response as one of: Positive, Negative, Neutral, or Mixed.\n\n-Positive: The respondent expresses favorable opinions, satisfaction, or enthusiasm.\n-Negative: The respondent expresses unfavorable opinions, dissatisfaction, frustration, or disappointment.\n-Neutral: The respondent expresses neither positive nor negative sentiment, is purely factual, or gives a balanced non-evaluative answer.\n-Mixed: The respondent expresses both positive and negative sentiment in the same response.\n\nIf the response is empty, gibberish, or too short to determine sentiment, respond with Neutral.\n\nNever include any other information or commentary in your response. Only respond with one word: Positive, Negative, Neutral, or Mixed."
+                }
+            ]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: How was your experience with our customer service?\nResponse: The rep was incredibly helpful and resolved my issue immediately. Really impressed!" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Positive" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What do you think about the new packaging?\nResponse: I hate it. It's hard to open and feels cheap compared to the old design." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Negative" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Describe your last online shopping experience.\nResponse: I ordered on Monday and it arrived on Thursday. I used a promo code." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Neutral" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: How do you feel about the new app update?\nResponse: Love the new layout but the app is way slower now and keeps crashing." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Mixed" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What do you think about the price?\nResponse: It's fine I guess" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Neutral" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: How satisfied are you with your purchase?\nResponse: Absolutely terrible. Fell apart after two days. Never buying from this brand again." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Negative" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What are your thoughts on the brand overall?\nResponse: Great quality products but their website is really confusing and customer support took forever to respond." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Mixed" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: How would you describe the taste of the new flavor?\nResponse: So good! Way better than the original. I already bought three more boxes." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Positive" }]
+        }
+    ],
+
+    themePrompt: [
+        {
+            "role": "system",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "You are an expert qualitative research analyst helping to code open-ended survey responses. Given a survey question and the participant's response, extract up to 3 key themes from the response as a comma-separated list of short noun phrases (1-3 words each). Themes should capture the main topics, concepts, or issues the respondent mentions.\n\nGuidelines:\n-Focus on substantive content themes, not sentiment\n-Use concise noun phrases (e.g. 'price', 'customer service', 'ease of use', 'product quality')\n-Return only the themes most central to the response\n-If the response is empty, gibberish, or contains no extractable themes, respond with None\n-Do not include generic themes like 'survey response' or 'answer'\n\nNever include any other information or commentary. Only respond with a comma-separated list of themes or the word None."
+                }
+            ]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Why did you choose this brand of running shoes?\nResponse: I always go for Nike because the cushioning is amazing and they last way longer than other brands I've tried." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "brand loyalty, cushioning, durability" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What do you like most about the app?\nResponse: It's really easy to navigate and I love that I can track everything in one place." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "ease of use, all-in-one tracking" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What would make you switch to a competitor?\nResponse: Price mostly. If someone offered the same quality for cheaper I'd probably switch." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "price, value for money" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: How was your experience at the hotel?\nResponse: The room was clean and the location was perfect, right in the city center. But the breakfast was overpriced and the wifi barely worked." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "room cleanliness, location, breakfast pricing, wifi quality" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What do you think about the product?\nResponse: good" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "product satisfaction" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Tell us about your last flight experience.\nResponse: asdfgh jkl" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "None" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Why did you cancel your subscription?\nResponse: I wasn't using it enough to justify the monthly cost. The features are good but just not something I need right now." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "usage frequency, subscription cost, feature relevance" }]
+        }
+    ],
+
+    piiPrompt: [
+        {
+            "role": "system",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "You are a data privacy analyst reviewing open-ended survey responses for personally identifiable information (PII). Given a survey response, identify any PII present in the text.\n\nRespond with 'None' if no PII is found. If PII is found, respond with a comma-separated list of PII types from the following categories only:\n-name (full names or surnames of real people)\n-email (email addresses)\n-phone (phone numbers)\n-address (physical addresses, street names, zip codes)\n-ssn (social security or national ID numbers)\n-dob (dates of birth)\n\nDo not flag:\n-Brand names, company names, or product names\n-City names or country names mentioned in passing\n-Job titles or generic role descriptions\n-The respondent referring to themselves in first person\n\nNever include any other information or commentary. Only respond with 'None' or a comma-separated list of PII types."
+                }
+            ]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Response: I really enjoyed the product and would recommend it to friends." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "None" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Response: You can reach me at john.doe@gmail.com if you have follow up questions." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "email" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Response: My name is Sarah Johnson and I've been a customer for 5 years. My address is 123 Maple Street, Springfield." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "name, address" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Response: Call me at 555-867-5309 anytime, I'm happy to talk more about this." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "phone" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Response: I work in marketing and live in New York. Been using this brand for years." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "None" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Response: My SSN is 123-45-6789 and I was born on March 5, 1985. Please verify my account." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "ssn, dob" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Response: Disappointed with the service. The manager Tom Williams was very rude to me." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "name" }]
+        }
+    ],
+
+    probePrompt: [
+        {
+            "role": "system",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "You are an expert market research moderator. Given a survey question and a participant's response, generate a single natural follow-up probe question to elicit more depth, specificity, or concrete examples from the participant.\n\nGenerate a probe when the response is:\n-Very short or vague (e.g., 'good', 'fine', 'I don't know', single-word answers)\n-Missing specific details, reasons, or examples that would be valuable\n-A general statement that could be explored further\n\nRespond with 'None' when the response:\n-Is already detailed and comprehensive (clearly explains reasoning with specific examples)\n-Has 40+ words and directly addresses the question thoroughly\n-Is categorically unanswerable (gibberish, completely off-topic)\n\nProbe guidelines:\n-Keep probes open-ended and conversational (start with 'Can you', 'What', 'Why', 'How', 'Tell us')\n-Reference what the respondent said to make it feel like a natural conversation\n-Aim for one focused question, not multiple questions\n-Keep the probe concise (under 20 words)\n\nOnly respond with the probe question or the word None. Never add explanations or commentary."
+                }
+            ]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Why did you choose this product over competitors?\nResponse: It's just better." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "What specifically makes it better for you compared to other options?" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: How was your experience with our customer service team?\nResponse: Good" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Can you tell us more about what made it a good experience?" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What do you think of the new packaging design?\nResponse: I really like the new look. The colors are vibrant and eye-catching on the shelf, and the resealable zip makes it much easier to store. It also feels more premium than before which makes me feel better about the price I'm paying." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "None" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What would make you recommend this brand to a friend?\nResponse: I don't know" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "What aspects of the brand, if improved, might make you want to share it with others?" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Describe the last time you used our app.\nResponse: I used it to check my balance yesterday." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "How was that experience — was it easy to find what you needed?" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: What do you dislike about the product?\nResponse: nothing really" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "Is there anything, even minor, you'd change or improve about it?" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Tell us about your shopping habits.\nResponse: asdfjk lop" }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "None" }]
+        },
+        {
+            "role": "user",
+            "content": [{ "type": "text", "text": "Question: Why did you stop using the service?\nResponse: It got too expensive and there were cheaper alternatives that did the same thing. I tried a couple and ended up switching to one that had a free tier which was enough for my needs." }]
+        },
+        {
+            "role": "assistant",
+            "content": [{ "type": "text", "text": "None" }]
+        }
     ]
 }

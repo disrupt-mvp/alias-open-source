@@ -1,6 +1,6 @@
 const he = require('he');
 const { levenshteinDistance, longestCommonSubstring } = require('./helpers/string-utils');
-const { openAIGroupResponse, openAIEffortCategorization } = require('./helpers/openai-utils');
+const { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe } = require('./helpers/openai-utils');
 const { checkForCrossDuplicateResponses, checkIfMatch } = require('./helpers/cross-duplicate-utils');
 const { isJsonString, parseQueryString, parseJSON } = require('./helpers/json-utils');
 const config = require('./config');
@@ -99,7 +99,7 @@ exports.handler = async function (event, context) {
 
         // Parse the body
         problemParsingResponse = true;
-        let { questions, survey_id, participant_id, responses, low_effort_threshold } = parsingFunction(event.body);
+        let { questions, survey_id, participant_id, responses, low_effort_threshold, include_sentiment, include_themes, include_pii, include_probes } = parsingFunction(event.body);
         const lowEffortThreshold = low_effort_threshold || 0;
         problemParsingResponse = false;
 
@@ -154,14 +154,37 @@ exports.handler = async function (event, context) {
             return openAIEffortCategorization(questions[id], responses[id]).then(({ result }) => { return { id, result }} );
         });
 
+        // Optional QA feature promises (only launched if requested)
+        const sentimentPromises = include_sentiment ? uniqueIds.map(id => {
+            return openAISentimentAnalysis(questions[id], responses[id]).then(({ result }) => ({ id, result }));
+        }) : [];
+
+        const themePromises = include_themes ? uniqueIds.map(id => {
+            return openAIThemeExtraction(questions[id], responses[id]).then(({ result }) => ({ id, result }));
+        }) : [];
+
+        const piiPromises = include_pii ? uniqueIds.map(id => {
+            return openAIPIIDetection(questions[id], responses[id]).then(({ result }) => ({ id, result }));
+        }) : [];
+
+        const probePromises = include_probes ? uniqueIds.map(id => {
+            return openAIGenerateProbe(questions[id], responses[id]).then(({ result }) => ({ id, result }));
+        }) : [];
+
         const selfDuplicateResponses = checkForSelfDuplicateResponses(cleanedResponses);
 
         // Wait for duplication results from duplicatedResponsesPromise
         const { duplicateResponses, responseGroups } = await duplicateResponsePromise;
 
-        // Wait for categorization results
-        const openAIResults = await Promise.all(categorizationPromises);
-        const lowEffortResults = await Promise.all(lowEffortPromises);
+        // Wait for all AI results in parallel
+        const [openAIResults, lowEffortResults, sentimentResults, themeResults, piiResults, probeResults] = await Promise.all([
+            Promise.all(categorizationPromises),
+            Promise.all(lowEffortPromises),
+            Promise.all(sentimentPromises),
+            Promise.all(themePromises),
+            Promise.all(piiPromises),
+            Promise.all(probePromises),
+        ]);
 
         // Initialize checks, effort ratings and categorization results
         const checks = {};
@@ -171,7 +194,7 @@ exports.handler = async function (event, context) {
 
         // Loop through the results and categorize them
         Object.keys(questions).forEach(id => {
-            // -- OPenai categorizations --
+            // -- OpenAI categorizations --
             const openAIResult = openAIResults.find(result => result.id === id);
             // Make sure result exists and is string
             if (openAIResult && typeof openAIResult.result === 'string') {
@@ -195,6 +218,14 @@ exports.handler = async function (event, context) {
             } else {
                 effortRatings[id] = 0;
             };
+
+            // -- PII check (add to checks array if PII is detected) --
+            if (include_pii) {
+                const piiResult = piiResults.find(result => result.id === id);
+                if (piiResult && typeof piiResult.result === 'string' && piiResult.result.toLowerCase() !== 'none') {
+                    checks[id].push('Contains PII');
+                }
+            }
         });
 
         // Add cross duplicate response to checks
@@ -209,11 +240,41 @@ exports.handler = async function (event, context) {
             if (selfDuplicateResponses[id]) checks[id].push('Self-duplicate response');
         });
 
+        // Build optional result maps
+        const sentimentRatings = include_sentiment ? Object.fromEntries(
+            sentimentResults.map(({ id, result }) => [id, result])
+        ) : undefined;
+
+        const themes = include_themes ? Object.fromEntries(
+            themeResults.map(({ id, result }) => {
+                const cleaned = result && result.toLowerCase() !== 'none' ? result.split(',').map(t => t.trim()).filter(Boolean) : [];
+                return [id, cleaned];
+            })
+        ) : undefined;
+
+        const piiFlags = include_pii ? Object.fromEntries(
+            piiResults.map(({ id, result }) => {
+                const types = result && result.toLowerCase() !== 'none' ? result.split(',').map(t => t.trim()).filter(Boolean) : [];
+                return [id, types];
+            })
+        ) : undefined;
+
+        const followupProbes = include_probes ? Object.fromEntries(
+            probeResults.map(({ id, result }) => {
+                const probe = result && result.toLowerCase() !== 'none' ? result : null;
+                return [id, probe];
+            })
+        ) : undefined;
+
         const returnBody = {
             error: false,
             checks,
             response_groups: responseGroups,
             effort_ratings: effortRatings,
+            ...(sentimentRatings !== undefined && { sentiment_ratings: sentimentRatings }),
+            ...(themes !== undefined && { themes }),
+            ...(piiFlags !== undefined && { pii_flags: piiFlags }),
+            ...(followupProbes !== undefined && { followup_probes: followupProbes }),
         };
 
         return {

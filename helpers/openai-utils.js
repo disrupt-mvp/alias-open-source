@@ -1,5 +1,5 @@
 const OpenAI = require("openai");
-const { groupResponsePrompt, effortPrompt } = require('./prompts');
+const { groupResponsePrompt, effortPrompt, sentimentPrompt, themePrompt, piiPrompt, probePrompt } = require('./prompts');
 const config = require('../config');
 
 // OpenAI setup
@@ -51,14 +51,102 @@ const openAIEffortCategorization = async (question, userResponse) => {
 
 }
 
+// Call OpenAI API to classify sentiment (Positive, Negative, Neutral, Mixed)
+const openAISentimentAnalysis = async (question, userResponse) => {
+
+    if (userResponse === '') return { result: 'Neutral' };
+
+    const messages = [
+        ...sentimentPrompt,
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": `Question: ${question}\nResponse: ${userResponse}`
+                }
+            ]
+        }
+    ];
+
+    const response = await callOpenAI(messages, 10);
+    return response;
+}
+
+// Call OpenAI API to extract key themes (comma-separated noun phrases)
+const openAIThemeExtraction = async (question, userResponse) => {
+
+    if (userResponse === '') return { result: 'None' };
+
+    const messages = [
+        ...themePrompt,
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": `Question: ${question}\nResponse: ${userResponse}`
+                }
+            ]
+        }
+    ];
+
+    const response = await callOpenAI(messages, 60);
+    return response;
+}
+
+// Call OpenAI API to detect PII (None or comma-separated PII types)
+const openAIPIIDetection = async (question, userResponse) => {
+
+    if (userResponse === '') return { result: 'None' };
+
+    const messages = [
+        ...piiPrompt,
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": `Response: ${userResponse}`
+                }
+            ]
+        }
+    ];
+
+    const response = await callOpenAI(messages, 30);
+    return response;
+}
+
+// Call OpenAI API to generate a follow-up probe question
+const openAIGenerateProbe = async (question, userResponse) => {
+
+    if (userResponse === '') return { result: 'None' };
+
+    const messages = [
+        ...probePrompt,
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": `Question: ${question}\nResponse: ${userResponse}`
+                }
+            ]
+        }
+    ];
+
+    const response = await callOpenAI(messages, 150);
+    return response;
+}
+
 // Call the OpenAI API
-const callOpenAI = async (messages) => {
+const callOpenAI = async (messages, maxTokens = 10) => {
 
     const response = await openai.chat.completions.create({
         model: config.openAIModel,
         messages,
         temperature: 0,
-        max_tokens: 10,
+        max_tokens: maxTokens,
         top_p: 1
     });
 
@@ -66,4 +154,4 @@ const callOpenAI = async (messages) => {
     return { result: content };
 };
 
-module.exports = { openAIGroupResponse, openAIEffortCategorization };
+module.exports = { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe };
