@@ -226,16 +226,23 @@ try:
     ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
 except Exception as ks_exc:
     print 'DBG ks_raw exception: ' + str(ks_exc)
-print 'DBG ks_raw len=' + str(len(ks_raw)) + ' val=' + repr(ks_raw[:120] if ks_raw else '')
+# HTML-decode in case Decipher encodes quotes/ampersands in stored field values
+if ks_raw:
+    try:
+        from HTMLParser import HTMLParser as _HP
+        ks_raw = _HP().unescape(ks_raw)
+    except Exception as _he:
+        print 'DBG ks_html_decode error: ' + str(_he)
+print 'DBG ks_raw len=' + str(len(ks_raw)) + ' preview=' + repr(ks_raw[:60] if ks_raw else '')
 ks_field = ''
 if ks_raw:
     try:
         import json as aliasjson
         aliasjson.loads(ks_raw)
         ks_field = ', "keystrokes": %s' % ks_raw
+        print 'DBG ks_field set ok len=' + str(len(ks_field))
     except Exception as ks_err:
-        print 'DBG ks_raw json error: ' + str(ks_err)
-        pass
+        print 'DBG ks_raw json error: ' + str(ks_err) + ' raw_preview=' + repr(ks_raw[:60])
 p.data = """
 {
   "survey_id": "%s",
@@ -341,6 +348,7 @@ potentia_alias_data.d10.val = probe_texts[0]
 potentia_alias_data.d11.val = probe_texts[1]
 potentia_alias_data.d12.val = probe_texts[2]
 print 'DBG sent=' + str(p.data)[:200]
+print 'DBG ks_in_payload=' + str('keystrokes' in str(p.data))
 print 'DBG ks_r1=' + str(len(safe_string(allQuestions['alias_ks_store'].r1.val).strip()))
 print raw
 print status_val
