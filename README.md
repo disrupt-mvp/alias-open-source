@@ -26,9 +26,9 @@ This repo contains an open-end verbatim quality assurance API for online surveys
 
 ---
 
-### Where are the behavioral bot checks?
+### Behavioral bot detection
 
-This package covers content checks. Behavioral analytics and bot-detection (unnatural typing, mouse telemetry, etc.) are available in the full Roundtable product. Create a free account at [accounts.roundtable.ai](https://accounts.roundtable.ai).
+Include `keystrokes` (from `keystroke-tracker.js`) and/or `cursor_trace` (from `cursor-trace.js`) in your request to enable authenticity scoring. When present, the API runs a second AI pass that combines content checks, effort ratings, typing rhythm, and cursor behaviour to produce a 0–100 human authenticity score per response. Use both trackers together for the strongest signal.
 
 ---
 
@@ -52,6 +52,8 @@ This package covers content checks. Behavioral analytics and bot-detection (unna
 | `include_pii` | boolean | No | Return `pii_flags` and add `Contains PII` to checks when detected |
 | `include_probes` | boolean | No | Return `followup_probes` in the response |
 | `include_translation` | boolean | No | Translate non-English responses to English before analysis; return `translations` in the response |
+| `keystrokes` | object | No | Keystroke telemetry from `KeystrokeTracker.getPayload()` — enables `authenticity_scores` |
+| `cursor_trace` | object | No | Cursor telemetry from `CursorTrace.getPayload()` — enables or enriches `authenticity_scores` |
 
 **Notes:**
 - `questions` and `responses` must be arrays of equal length. The number of questions is dynamic — send 1 or more depending on your survey.
@@ -94,6 +96,7 @@ All output fields use string-numeric keys (`"0"`, `"1"`, `"2"`, …) that corres
 | `sentiment_ratings` | object | Only if `include_sentiment` | Per-response sentiment: `Positive`, `Negative`, `Neutral`, or `Mixed` |
 | `themes` | object | Only if `include_themes` | Per-response array of up to 3 theme strings |
 | `pii_flags` | object | Only if `include_pii` | Per-response array of detected PII types (empty array if none) |
+| `authenticity_scores` | object | Only if `keystrokes` or `cursor_trace` provided | Per-response human authenticity score (0–100) |
 | `followup_probes` | object | Only if `include_probes` | Per-response follow-up question string, or `null` if no probe needed |
 | `translations` | object | Only if `include_translation` | Per-response translated text (same as original if already English) |
 
@@ -191,12 +194,16 @@ node server.js                     # starts a local Express server
 
 ```
 ├── config.js                 # thresholds / model / timeouts
+├── keystroke-tracker.js      # client-side keystroke telemetry
+├── cursor-trace.js           # client-side cursor telemetry
 ├── identify-duplicates.js    # server-side endpoint hit by helpers
 ├── helpers
 │   ├── cross-duplicate-utils.js
 │   ├── json-utils.js
-│   ├── openai-utils.js       # 7 OpenAI functions: categorization, effort, sentiment, themes, PII, probes, translation
-│   ├── prompts.js            # 7 frozen few-shot prompt sets
+│   ├── keystroke-utils.js    # synchronous keystroke feature extraction
+│   ├── cursor-trace-utils.js # synchronous cursor feature extraction
+│   ├── openai-utils.js       # 8 OpenAI functions: categorization, effort, sentiment, themes, PII, probes, translation, humanity score
+│   ├── prompts.js            # 8 frozen few-shot prompt sets
 │   └── string-utils.js
 └── main.js                   # handler that orchestrates everything
 ```

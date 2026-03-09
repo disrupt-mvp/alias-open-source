@@ -109,6 +109,43 @@ When `keystrokes` is included, the response will contain an `authenticity_scores
 
 ---
 
+## Integrating the cursor tracker
+
+The cursor tracker (`cursor-trace.js`) is a companion to the keystroke tracker. It captures mouse behaviour per field — hover sessions, movement distance, click count, and velocity — which can distinguish natural human navigation from bot-driven or scripted automation. Use it alongside `keystrokes` for the strongest signal, or on its own.
+
+### Step 1 — Include the script
+
+```html
+<script src="cursor-trace.js"></script>
+```
+
+### Step 2 — Attach to each text input
+
+```javascript
+const textarea0 = document.getElementById('q0');
+const textarea1 = document.getElementById('q1');
+
+CursorTrace.attach(0, textarea0);
+CursorTrace.attach(1, textarea1);
+```
+
+### Step 3 — Include the payload on submit
+
+```javascript
+const payload = {
+  survey_id: 'survey_001',
+  participant_id: 'p_001',
+  questions: ['What do you like?', 'What would you improve?'],
+  responses: [textarea0.value, textarea1.value],
+  keystrokes: KeystrokeTracker.getPayload(),   // optional but recommended
+  cursor_trace: CursorTrace.getPayload()        // add this
+};
+```
+
+When `cursor_trace` (or `keystrokes`) is included, the response will contain an `authenticity_scores` object. Providing both trackers gives the AI the most complete behavioural picture.
+
+---
+
 ## API Reference
 
 **Endpoint:** `POST /v1/check`
@@ -128,6 +165,7 @@ When `keystrokes` is included, the response will contain an `authenticity_scores
 | `questions` | string[] | Yes | Array of question labels or full question text, positionally aligned with `responses` |
 | `responses` | string[] | Yes | Array of verbatim response texts |
 | `keystrokes` | object | No | Keystroke telemetry payload from `KeystrokeTracker.getPayload()` |
+| `cursor_trace` | object | No | Cursor telemetry payload from `CursorTrace.getPayload()` |
 | `low_effort_threshold` | number | No | Effort scores at or below this value get a `Low-effort` flag. Default: `0` (flag off) |
 | `include_sentiment` | boolean | No | Return sentiment classification per response |
 | `include_themes` | boolean | No | Return up to 3 key themes per response |
@@ -152,7 +190,7 @@ All output objects use string-numeric keys (`"0"`, `"1"`, …) matching the posi
 | `checks` | object | Always | Per-response array of quality flag strings |
 | `response_groups` | object | Always | Per-response group ID for cross-duplicate clustering |
 | `effort_ratings` | object | Always | Per-response effort score (0–10) |
-| `authenticity_scores` | object | `keystrokes` provided | Per-response human authenticity score (0–100) |
+| `authenticity_scores` | object | `keystrokes` or `cursor_trace` provided | Per-response human authenticity score (0–100) |
 | `sentiment_ratings` | object | `include_sentiment: true` | `Positive`, `Negative`, `Neutral`, or `Mixed` per response |
 | `themes` | object | `include_themes: true` | Array of up to 3 theme strings per response |
 | `pii_flags` | object | `include_pii: true` | Array of detected PII types per response (empty if none) |
@@ -180,7 +218,7 @@ All possible values that can appear in a `checks[i]` array:
 
 ### Authenticity score guide
 
-Returned in `authenticity_scores` when `keystrokes` is provided.
+Returned in `authenticity_scores` when `keystrokes` or `cursor_trace` (or both) is provided.
 
 | Score range | Interpretation |
 |---|---|
@@ -421,7 +459,9 @@ Other possible error messages:
 
 ---
 
-## What the keystroke tracker does and does not record
+## What the trackers do and do not record
+
+### Keystroke tracker
 
 | Captured | Not captured |
 |---|---|
@@ -431,7 +471,16 @@ Other possible error messages:
 | Number of characters in a copy/selection | Mouse position or movement |
 | Focus and blur events | Anything outside the attached field |
 
-The tracker is privacy-safe by design. It cannot reconstruct the response text from its output.
+### Cursor tracker
+
+| Captured | Not captured |
+|---|---|
+| Mouse enter / leave events on the field | Absolute cursor coordinates |
+| Movement deltas (dx, dy) between throttled samples | Cursor position on screen |
+| Click events on the field | Any text or content the user views |
+| Timestamps relative to first cursor event | Anything outside the attached field |
+
+Both trackers are privacy-safe by design. Neither can reconstruct the response text from its output.
 
 ---
 

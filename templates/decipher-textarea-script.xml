@@ -175,6 +175,100 @@ window.KeystrokeTracker = (function() {
 ]]></style>
 </text>
 
+<!-- ======================================================
+     Cursor store — captures mouse behaviour per field.
+     Uses the same sync pattern as alias_ks_store.
+     ====================================================== -->
+<text
+  label="alias_ct_store"
+  size="9999"
+  length="20000"
+  where="execute,survey,report">
+  <title>cursor trace payload</title>
+  <row label="r1">ct-data</row>
+  <style name="question.after"><![CDATA[
+<script>
+window.CursorTrace = (function() {
+  var THROTTLE_MS = 50;
+  var fieldData = {};
+  function attach(fieldId, el) {
+    var id = String(fieldId);
+    fieldData[id] = { events: [] };
+    var startTime = null;
+    var lastX = null;
+    var lastY = null;
+    var lastMoveTime = -Infinity;
+    function initTime() { if (startTime === null) startTime = performance.now(); }
+    function ts() { return startTime !== null ? Math.round(performance.now() - startTime) : 0; }
+    el.addEventListener('mouseenter', function(e) {
+      initTime(); lastX = e.clientX; lastY = e.clientY;
+      fieldData[id].events.push({ t: ts(), type: 'e' });
+    }, { passive: true });
+    el.addEventListener('mouseleave', function() {
+      initTime(); fieldData[id].events.push({ t: ts(), type: 'l' });
+    }, { passive: true });
+    el.addEventListener('mousemove', function(e) {
+      var now = performance.now();
+      if (now - lastMoveTime < THROTTLE_MS) return;
+      lastMoveTime = now; initTime();
+      var dx = lastX !== null ? Math.round(e.clientX - lastX) : 0;
+      var dy = lastY !== null ? Math.round(e.clientY - lastY) : 0;
+      lastX = e.clientX; lastY = e.clientY;
+      fieldData[id].events.push({ t: ts(), type: 'm', dx: dx, dy: dy });
+    }, { passive: true });
+    el.addEventListener('click', function() {
+      initTime(); fieldData[id].events.push({ t: ts(), type: 'c' });
+    }, { passive: true });
+  }
+  function getPayload() { return JSON.parse(JSON.stringify(fieldData)); }
+  function reset() { Object.keys(fieldData).forEach(function(k) { delete fieldData[k]; }); }
+  return { attach: attach, getPayload: getPayload, reset: reset };
+}());
+
+(function() {
+  var allInputs = document.querySelectorAll('input[type="text"]');
+  if (allInputs.length) {
+    allInputs[allInputs.length - 1].setAttribute('data-ct-store', '1');
+  }
+
+  function attachAll() {
+    var hidden = document.querySelector('[data-ct-store="1"]');
+    if (!hidden) { console.warn('[alias-ct] WARNING: hidden field not found'); return; }
+
+    function syncToHidden() {
+      var payload = JSON.stringify(window.CursorTrace.getPayload());
+      hidden.value = payload;
+      try { hidden.dispatchEvent(new Event('input', { bubbles: true })); } catch(_) {}
+      try { hidden.dispatchEvent(new Event('change', { bubbles: true })); } catch(_) {}
+      console.log('[alias-ct] syncToHidden: wrote', payload.length, 'chars');
+    }
+
+    document.querySelectorAll('textarea').forEach(function(el, idx) {
+      window.CursorTrace.attach(idx, el);
+    });
+    console.log('[alias-ct] attached to', document.querySelectorAll('textarea').length, 'textareas');
+    var form = document.querySelector('form');
+    if (form) {
+      form.addEventListener('submit', function() {
+        try { syncToHidden(); } catch(e) { console.error('[alias-ct] submit sync error:', e); }
+      }, { capture: true });
+    }
+    // Also sync on mouse leave from any textarea (in case user doesn't interact again before submit)
+    document.querySelectorAll('textarea').forEach(function(el) {
+      el.addEventListener('mouseleave', syncToHidden, { passive: true });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachAll);
+  } else {
+    attachAll();
+  }
+})();
+</script>
+]]></style>
+</text>
+
 <suspend/>
 <exec>
 bearer_token = "6e6fee6f536cf8a907b52c7d897e9a55"
@@ -234,20 +328,33 @@ ks_field = ''
 if ks_raw and ks_raw.startswith('{'):
     ks_field = ', "keystrokes": ' + ks_raw
     print 'DBG ks_field set ok len=' + str(len(ks_field))
+ct_raw = ''
+try:
+    ct_raw = safe_string(allQuestions['alias_ct_store'].r1.val).strip()
+except Exception as ct_exc:
+    print 'DBG ct_raw exception: ' + str(ct_exc)
+if ct_raw:
+    ct_raw = ct_raw.replace('&amp;quot;', '"').replace('&amp;#x5B;', '[').replace('&amp;#x5D;', ']')
+print 'DBG ct_raw len=' + str(len(ct_raw)) + ' preview=' + repr(ct_raw[:60] if ct_raw else '')
+ct_field = ''
+if ct_raw and ct_raw.startswith('{'):
+    ct_field = ', "cursor_trace": ' + ct_raw
+    print 'DBG ct_field set ok len=' + str(len(ct_field))
 p.data = """
 {
   "survey_id": "%s",
   "participant_id": "%s",
   "questions": [%s],
   "responses": [%s],
-  "include_probes": true%s
+  "include_probes": true%s%s
 }
 """ % (
     jescape(p.alias_client_dict['survey_id']),
     jescape(p.alias_client_dict['participant_id']),
     ','.join(questions_json),
     ','.join(responses_json),
-    ks_field
+    ks_field,
+    ct_field
 )
 p.data = p.data.strip()
 print p.data

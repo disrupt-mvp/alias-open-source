@@ -3,6 +3,7 @@ const { levenshteinDistance, longestCommonSubstring } = require('./helpers/strin
 const { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe, openAITranslate, openAIHumanityScore } = require('./helpers/openai-utils');
 const { checkForCrossDuplicateResponses, checkIfMatch } = require('./helpers/cross-duplicate-utils');
 const { extractAllKeystrokeFeatures } = require('./helpers/keystroke-utils');
+const { extractAllCursorFeatures } = require('./helpers/cursor-trace-utils');
 const { isJsonString, parseQueryString, parseJSON } = require('./helpers/json-utils');
 const config = require('./config');
 
@@ -100,7 +101,7 @@ exports.handler = async function (event, context) {
 
         // Parse the body
         problemParsingResponse = true;
-        let { questions, survey_id, participant_id, responses, low_effort_threshold, include_sentiment, include_themes, include_pii, include_probes, include_translation, keystrokes } = parsingFunction(event.body);
+        let { questions, survey_id, participant_id, responses, low_effort_threshold, include_sentiment, include_themes, include_pii, include_probes, include_translation, keystrokes, cursor_trace } = parsingFunction(event.body);
         const lowEffortThreshold = low_effort_threshold || 0;
         problemParsingResponse = false;
 
@@ -134,6 +135,8 @@ exports.handler = async function (event, context) {
 
         // Extract keystroke features synchronously before async work (keystrokes payload is optional)
         const allKeystrokeFeatures = keystrokes ? extractAllKeystrokeFeatures(keystrokes) : null;
+        // Extract cursor features synchronously (cursor_trace payload is optional)
+        const allCursorFeatures = cursor_trace ? extractAllCursorFeatures(cursor_trace) : null;
 
         // Clean responses with convertHTMLEntities
         Object.keys(responses).forEach(id => {
@@ -261,19 +264,21 @@ exports.handler = async function (event, context) {
         });
 
         // Wave 2: humanity score (needs checks + effort from wave 1; runs in parallel per field)
-        const humanityResults = allKeystrokeFeatures ? await Promise.all(
+        const hasBehaviouralData = allKeystrokeFeatures || allCursorFeatures;
+        const humanityResults = hasBehaviouralData ? await Promise.all(
             uniqueIds.map(id =>
                 openAIHumanityScore(
                     questions[id],
                     effectiveResponses[id],
-                    allKeystrokeFeatures[id] || null,
+                    allKeystrokeFeatures ? (allKeystrokeFeatures[id] || null) : null,
+                    allCursorFeatures ? (allCursorFeatures[id] || null) : null,
                     checks[id],
                     effortRatings[id]
                 ).then(({ result }) => ({ id, result }))
             )
         ) : [];
 
-        const authenticityScores = allKeystrokeFeatures ? Object.fromEntries(
+        const authenticityScores = hasBehaviouralData ? Object.fromEntries(
             humanityResults.map(({ id, result }) => [id, parseInt(result, 10) || 50])
         ) : undefined;
 

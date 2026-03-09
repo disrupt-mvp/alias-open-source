@@ -15,6 +15,7 @@ POST /v1/check
 │
 ├─ Input validation & sanitisation
 ├─ Keystroke feature extraction (sync, ~0ms)
+├─ Cursor feature extraction (sync, ~0ms)
 ├─ [Optional] Translation — await in series (needed before AI analysis)
 │
 ├─── WAVE 1 — parallel ──────────────────────────────────────
@@ -30,12 +31,12 @@ POST /v1/check
 ├─ Build checks[] array from wave 1 results
 │
 ├─── WAVE 2 — parallel ──────────────────────────────────────
-│    └─ openAIHumanityScore() × N  → 0–100 per field (if keystrokes present)
+│    └─ openAIHumanityScore() × N  → 0–100 per field (if keystrokes or cursor_trace present)
 │
 └─ Return aggregated JSON response
 ```
 
-Wave 2 is deliberately sequential after wave 1 because `openAIHumanityScore` needs both the effort rating and the categorisation flags produced in wave 1 as inputs. Within wave 2, all per-field humanity score calls run in parallel.
+Wave 2 is deliberately sequential after wave 1 because `openAIHumanityScore` needs both the effort rating and the categorisation flags produced in wave 1 as inputs. Within wave 2, all per-field humanity score calls run in parallel. Wave 2 only runs if at least one of `keystrokes` or `cursor_trace` is present in the request.
 
 ---
 
@@ -183,7 +184,7 @@ Translation runs in the first series step before all other AI checks. The transl
 
 ---
 
-## Behavioural analysis (keystroke layer)
+## Behavioural analysis (keystroke + cursor layer)
 
 ### Client-side telemetry (`keystroke-tracker.js`)
 
@@ -324,14 +325,49 @@ Humans make mistakes. Absence of corrections in a long response is suspicious.
 
 ---
 
+### Client-side telemetry (`cursor-trace.js`)
+
+The cursor tracker attaches passive event listeners for mouse interactions on each field. Events are recorded as `{ t, type, dx?, dy? }` objects, throttled to one move sample per 50ms:
+
+| `type` | Browser event | Payload |
+|---|---|---|
+| `"e"` | `mouseenter` | none |
+| `"l"` | `mouseleave` | none |
+| `"m"` | `mousemove` (throttled) | `dx`, `dy` — pixel deltas from previous sample |
+| `"c"` | `click` | none |
+
+`t` is milliseconds elapsed since the first cursor event on that field. Move events record only deltas (never absolute coordinates) for privacy.
+
+---
+
+### Feature extraction (`helpers/cursor-trace-utils.js`)
+
+| Feature | Description |
+|---|---|
+| `totalMoveEvents` | Number of throttled move samples |
+| `totalDistancePx` | Cumulative distance: `Σ sqrt(dx²+dy²)` |
+| `avgVelocityPxMs` | Mean velocity across consecutive move intervals (px/ms) |
+| `maxVelocityPxMs` | Peak velocity sample |
+| `velocityCv` | Coefficient of variation of velocity — **the primary cursor bot signal.** Bots move at constant speed (CV < 0.20); humans have variable velocity (CV typically 0.4–1.0). Only computed when ≥ 5 intervals are present. |
+| `clickCount` | Number of clicks on the field |
+| `enterCount` / `leaveCount` | Number of mouseenter / mouseleave events |
+| `hoverSessions` | Number of distinct hover periods (each enter increments this) |
+| `totalHoverMs` | Total milliseconds the mouse spent over the field |
+| `timeToFirstEnterMs` | Time of the first mouseenter event |
+| `suspectNoMovement` | `true` when `totalMoveEvents === 0` |
+| `suspectSmoothMotion` | `true` when `velocityCv < 0.20` with ≥ 5 samples |
+| `suspectNoHover` | `true` when `enterCount === 0` |
+
+---
+
 ### AI humanity scoring (`openAIHumanityScore`)
 
-**Function:** `openAIHumanityScore(question, response, keystrokeFeatures, existingChecks, effortRating)`
+**Function:** `openAIHumanityScore(question, response, keystrokeFeatures, cursorFeatures, existingChecks, effortRating)`
 **Model:** GPT-4o, temperature 0, max_tokens 5
-**Prompt:** `humanityScorePrompt` (frozen few-shot, 8 examples)
+**Prompt:** `humanityScorePrompt` (frozen few-shot, 10 examples)
 **Output:** Integer 0–100 (defaults to 50 on parse failure)
 
-The function formats all 25 keystroke features into a structured text block alongside the content check results and effort rating, then asks the model to return a single integer.
+The function formats keystroke features and cursor features into structured text blocks alongside the content check results and effort rating, then asks the model to return a single integer. Either or both feature sets may be `null` — the AI degrades gracefully.
 
 #### Why AI for the final score?
 
@@ -358,7 +394,7 @@ The system message defines:
 
 #### Few-shot examples
 
-8 examples cover the full archetype space:
+10 examples cover the full archetype space:
 
 | # | Archetype | Key signals | Score |
 |---|---|---|---|
@@ -370,6 +406,8 @@ The system message defines:
 | 6 | No telemetry, content OK | null features, effort 5, no flags | 50 |
 | 7 | External copy-paste (not AI) | 1 large paste, tabAwayPresent, pasteAfterBlur, no typing | 22 |
 | 8 | Partial paste + genuine typing | pasteCharFraction 0.35, backspaceRate 0.08, ikiCv 0.61 | 71 |
+| 9 | Genuine human (with cursor data) | ikiCv 0.73, WPM 55, backspaceRate 0.09, cursor CV 0.58, 2 hover sessions | 88 |
+| 10 | Bot (smooth cursor + regular timing) | ikiCv 0.06, WPM 185, cursor CV 0.04 (smooth motion), no corrections | 6 |
 
 ---
 
@@ -406,6 +444,13 @@ The system message defines:
 | `farmingMinChars` | `10` | Minimum chars for farming check to apply (avoids false positives on short valid answers). |
 | `pasteAfterBlurWindowMs` | `2000` | Paste within this many ms after a blur event sets `pasteAfterBlur`. |
 | `burstGapMs` | `2000` | IKI gap larger than this separates one typing burst from the next. |
+
+### Cursor thresholds (`config.cursorTrace`)
+
+| Key | Default | Description |
+|---|---|---|
+| `smoothMotionCvThreshold` | `0.20` | Velocity CV below this triggers `suspectSmoothMotion`. Bots typically move at constant speed (CV < 0.10); natural human movement is variable (CV typically 0.4–1.0). |
+| `minVelocitySamples` | `5` | Minimum move intervals before velocity CV is computed. |
 
 ---
 
@@ -444,12 +489,14 @@ Before any analysis, all response text goes through:
 
 ```
 ├── config.js                      # All thresholds, model, and timeouts
-├── keystroke-tracker.js           # Client-side telemetry snippet
+├── keystroke-tracker.js           # Client-side keystroke telemetry snippet
+├── cursor-trace.js                # Client-side cursor telemetry snippet
 ├── server.js                      # Express HTTP server, auth middleware
 ├── main.js                        # Request handler, pipeline orchestration
 ├── identify-duplicates.js         # Batch duplicate comparison worker
 └── helpers/
-    ├── keystroke-utils.js         # Synchronous feature extraction from telemetry
+    ├── keystroke-utils.js         # Synchronous feature extraction from keystroke telemetry
+    ├── cursor-trace-utils.js      # Synchronous feature extraction from cursor telemetry
     ├── openai-utils.js            # 8 OpenAI wrapper functions
     ├── prompts.js                 # 8 frozen few-shot prompt arrays
     ├── cross-duplicate-utils.js   # Cross-participant duplicate orchestration

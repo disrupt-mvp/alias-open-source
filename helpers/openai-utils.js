@@ -162,7 +162,7 @@ const openAITranslate = async (userResponse) => {
 }
 
 // Call OpenAI API to score human authenticity (0-100) using keystroke features + content checks
-const openAIHumanityScore = async (question, userResponse, keystrokeFeatures, existingChecks, effortRating) => {
+const openAIHumanityScore = async (question, userResponse, keystrokeFeatures, cursorFeatures, existingChecks, effortRating) => {
 
     if (userResponse === '') return { result: '50' };
 
@@ -186,7 +186,21 @@ const openAIHumanityScore = async (question, userResponse, keystrokeFeatures, ex
         ].join('\n');
     }
 
-    const userText = `Question: ${question}\nResponse: ${userResponse}\nContent checks: ${checksStr}\nEffort rating: ${effort}\n\nKeystroke features:\n${keystrokeStr}`;
+    let cursorStr;
+    if (!cursorFeatures) {
+        cursorStr = 'null (no telemetry captured)';
+    } else {
+        const c = cursorFeatures;
+        cursorStr = [
+            `- Move events: ${c.totalMoveEvents}  Total distance: ${c.totalDistancePx}px`,
+            `- Avg velocity: ${c.avgVelocityPxMs !== null ? c.avgVelocityPxMs + ' px/ms' : 'null'}  Max: ${c.maxVelocityPxMs !== null ? c.maxVelocityPxMs + ' px/ms' : 'null'}  Velocity CV: ${c.velocityCv !== null ? c.velocityCv : 'null'}`,
+            `- Clicks: ${c.clickCount}  Hover sessions: ${c.hoverSessions}  Total hover time: ${c.totalHoverMs}ms`,
+            `- Time to first hover: ${c.timeToFirstEnterMs !== null ? c.timeToFirstEnterMs + 'ms' : 'null'}`,
+            `- Suspect flags: noMovement=${c.suspectNoMovement}  smoothMotion=${c.suspectSmoothMotion}  noHover=${c.suspectNoHover}`,
+        ].join('\n');
+    }
+
+    const userText = `Question: ${question}\nResponse: ${userResponse}\nContent checks: ${checksStr}\nEffort rating: ${effort}\n\nKeystroke features:\n${keystrokeStr}\n\nCursor features:\n${cursorStr}`;
 
     const messages = [
         ...humanityScorePrompt,

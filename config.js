@@ -18,5 +18,9 @@ module.exports = {
     farmingMinChars         : 10,     // minimum chars typed for farming check to apply
     pasteAfterBlurWindowMs  : 2000,   // paste within this ms after blur = suspect external copy
     burstGapMs              : 2000,   // IKI gap above this separates typing bursts
+  },
+  cursorTrace: {
+    smoothMotionCvThreshold : 0.20,   // velocity CV below this = suspiciously smooth (bot)
+    minVelocitySamples      : 5,      // minimum move intervals before CV is meaningful
   }
 };
