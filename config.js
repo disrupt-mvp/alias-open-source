@@ -22,5 +22,10 @@ module.exports = {
   cursorTrace: {
     smoothMotionCvThreshold : 0.20,   // velocity CV below this = suspiciously smooth (bot)
     minVelocitySamples      : 5,      // minimum move intervals before CV is meaningful
+  },
+  faceAnalysis: {
+    frameCacheTtlMs         : 30 * 60 * 1000,  // server-side session cache TTL (30 min)
+    lowEngagementThreshold  : 4,               // engagement_score (0-10) below this = low engagement
+    lookAwayFractionThreshold: 0.40,           // fraction of frames looking away = suspect
   }
 };

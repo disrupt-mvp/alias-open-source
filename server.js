@@ -18,6 +18,7 @@ const crypto = require("crypto");
 // Load the handler modules
 const mainModule = require("./main.js");
 const identifyModule = require("./identify-duplicates.js");
+const { openAIAnalyzeFaceFrame } = require("./helpers/openai-utils");
 
 // Support different export styles:
 // - module.exports = fn
@@ -105,6 +106,23 @@ app.post("/v1/check", requireAuth, async (req, res) => {
 
     const out = await mainHandler(event, {});
     res.status(out.statusCode || 200).send(out.body || "");
+  } catch (err) {
+    res.status(500).json({ error: err?.message || "Internal error" });
+  }
+});
+
+// Face-frame endpoint: called by FaceTracker JS in Decipher survey pages.
+// Receives a single webcam frame, classifies emotion via GPT-4o Vision, returns result.
+// FACE_ANALYSIS_ENABLED toggle in alias_face_store JS controls whether this is called at all.
+app.post("/v1/face-frame", requireAuth, async (req, res) => {
+  try {
+    const { session_id, question_idx, frame_b64 } = req.body || {};
+    if (!frame_b64 || typeof frame_b64 !== "string") {
+      return res.status(400).json({ error: "Missing frame_b64" });
+    }
+    const result = await openAIAnalyzeFaceFrame(frame_b64);
+    console.log(`[alias-face] frame classified session=${session_id} q=${question_idx} emotion=${result.emotion} engagement=${result.engagement_score}`);
+    res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ error: err?.message || "Internal error" });
   }

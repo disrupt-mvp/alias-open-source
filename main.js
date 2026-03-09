@@ -4,6 +4,7 @@ const { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis
 const { checkForCrossDuplicateResponses, checkIfMatch } = require('./helpers/cross-duplicate-utils');
 const { extractAllKeystrokeFeatures, computeKeystrokeScore } = require('./helpers/keystroke-utils');
 const { extractAllCursorFeatures, computeCursorScore } = require('./helpers/cursor-trace-utils');
+const { extractAllFaceFeatures, computeFaceScore } = require('./helpers/face-utils');
 const { isJsonString, parseQueryString, parseJSON } = require('./helpers/json-utils');
 const config = require('./config');
 
@@ -101,7 +102,7 @@ exports.handler = async function (event, context) {
 
         // Parse the body
         problemParsingResponse = true;
-        let { questions, survey_id, participant_id, responses, low_effort_threshold, include_sentiment, include_themes, include_pii, include_probes, include_translation, keystrokes, cursor_trace } = parsingFunction(event.body);
+        let { questions, survey_id, participant_id, responses, low_effort_threshold, include_sentiment, include_themes, include_pii, include_probes, include_translation, keystrokes, cursor_trace, face_data } = parsingFunction(event.body);
         const lowEffortThreshold = low_effort_threshold || 0;
         problemParsingResponse = false;
 
@@ -137,6 +138,8 @@ exports.handler = async function (event, context) {
         const allKeystrokeFeatures = keystrokes ? extractAllKeystrokeFeatures(keystrokes) : null;
         // Extract cursor features synchronously (cursor_trace payload is optional)
         const allCursorFeatures = cursor_trace ? extractAllCursorFeatures(cursor_trace) : null;
+        // Extract face features synchronously (face_data payload is optional — only present when FACE_ANALYSIS_ENABLED=true)
+        const allFaceFeatures = face_data ? extractAllFaceFeatures(face_data) : null;
 
         // Clean responses with convertHTMLEntities
         Object.keys(responses).forEach(id => {
@@ -264,7 +267,7 @@ exports.handler = async function (event, context) {
         });
 
         // Wave 2: humanity score (needs checks + effort from wave 1; runs in parallel per field)
-        const hasBehaviouralData = allKeystrokeFeatures || allCursorFeatures;
+        const hasBehaviouralData = allKeystrokeFeatures || allCursorFeatures || allFaceFeatures;
         const humanityResults = hasBehaviouralData ? await Promise.all(
             uniqueIds.map(id =>
                 openAIHumanityScore(
@@ -273,7 +276,8 @@ exports.handler = async function (event, context) {
                     allKeystrokeFeatures ? (allKeystrokeFeatures[id] || null) : null,
                     allCursorFeatures ? (allCursorFeatures[id] || null) : null,
                     checks[id],
-                    effortRatings[id]
+                    effortRatings[id],
+                    allFaceFeatures ? (allFaceFeatures[id] || null) : null
                 ).then(({ result }) => ({ id, result }))
             )
         ) : [];
@@ -289,6 +293,10 @@ exports.handler = async function (event, context) {
 
         const cursorScores = allCursorFeatures ? Object.fromEntries(
             uniqueIds.map(id => [id, computeCursorScore(allCursorFeatures[id] || null)])
+        ) : undefined;
+
+        const faceScores = allFaceFeatures ? Object.fromEntries(
+            uniqueIds.map(id => [id, computeFaceScore(allFaceFeatures[id] || null)])
         ) : undefined;
 
         // Build optional result maps
@@ -328,6 +336,7 @@ exports.handler = async function (event, context) {
             effort_ratings: effortRatings,
             ...(keystrokeScores !== undefined && { keystroke_scores: keystrokeScores }),
             ...(cursorScores !== undefined && { cursor_scores: cursorScores }),
+            ...(faceScores !== undefined && { face_scores: faceScores }),
             ...(authenticityScores !== undefined && { authenticity_scores: authenticityScores }),
             ...(sentimentRatings !== undefined && { sentiment_ratings: sentimentRatings }),
             ...(themes !== undefined && { themes }),
