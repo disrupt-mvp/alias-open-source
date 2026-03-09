@@ -340,6 +340,8 @@ potentia_alias_data.d9.val = stringify(auth_map)
 potentia_alias_data.d10.val = probe_texts[0]
 potentia_alias_data.d11.val = probe_texts[1]
 potentia_alias_data.d12.val = probe_texts[2]
+print 'DBG sent=' + str(p.data)[:200]
+print 'DBG ks_r1=' + str(len(safe_string(allQuestions['alias_ks_store'].r1.val).strip()))
 print raw
 print status_val
 </exec>
