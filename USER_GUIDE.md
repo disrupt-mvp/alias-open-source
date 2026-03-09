@@ -17,9 +17,13 @@ The Roundtable Alias API analyses open-ended survey responses and returns struct
 - Optional: sentiment, themes, PII detection, follow-up probe generation, auto-translation
 
 **Behavioural checks** — how it was typed
-- Keystroke telemetry captured by a client-side snippet
-- Features extracted: typing speed, paste events, correction behaviour, timing regularity, focus/blur patterns
-- AI synthesises all signals into a single `authenticity_score` (0–100) per response
+- Keystroke telemetry captured by a client-side snippet (`keystroke-tracker.js`)
+- Mouse behaviour captured by a cursor tracker snippet (`cursor-trace.js`)
+- Features extracted: typing speed, paste events, correction behaviour, timing regularity, focus/blur patterns, cursor velocity, hover sessions
+- Three scores returned per response (0–100 each):
+  - `keystroke_scores` — rule-based score from typing signals only
+  - `cursor_scores` — rule-based score from mouse behaviour signals only
+  - `authenticity_scores` — AI-combined score synthesising all signals; the primary fraud signal
 
 The two layers work together. A response can look perfectly valid in content but score low on authenticity because it was pasted in from ChatGPT in one action with no corrections and zero natural typing rhythm.
 
@@ -190,7 +194,9 @@ All output objects use string-numeric keys (`"0"`, `"1"`, …) matching the posi
 | `checks` | object | Always | Per-response array of quality flag strings |
 | `response_groups` | object | Always | Per-response group ID for cross-duplicate clustering |
 | `effort_ratings` | object | Always | Per-response effort score (0–10) |
-| `authenticity_scores` | object | `keystrokes` or `cursor_trace` provided | Per-response human authenticity score (0–100) |
+| `keystroke_scores` | object | `keystrokes` provided | Per-response rule-based score from typing signals only (0–100, or `null` per field if no keystroke data for that field) |
+| `cursor_scores` | object | `cursor_trace` provided | Per-response rule-based score from mouse behaviour signals only (0–100, or `null` per field if no cursor data) |
+| `authenticity_scores` | object | `keystrokes` or `cursor_trace` provided | Per-response AI-combined score synthesising all signals (0–100). Primary signal for flagging fraud. |
 | `sentiment_ratings` | object | `include_sentiment: true` | `Positive`, `Negative`, `Neutral`, or `Mixed` per response |
 | `themes` | object | `include_themes: true` | Array of up to 3 theme strings per response |
 | `pii_flags` | object | `include_pii: true` | Array of detected PII types per response (empty if none) |
@@ -218,7 +224,11 @@ All possible values that can appear in a `checks[i]` array:
 
 ### Authenticity score guide
 
-Returned in `authenticity_scores` when `keystrokes` or `cursor_trace` (or both) is provided.
+All three behavioural scores use a **0–100 scale where 100 is most human-like and 0 is most bot-like**. `keystroke_scores` and `cursor_scores` are rule-based (deterministic); `authenticity_scores` is AI-combined and is the primary signal.
+
+#### `authenticity_scores` interpretation
+
+Returned when `keystrokes` or `cursor_trace` (or both) is provided.
 
 | Score range | Interpretation |
 |---|---|
@@ -227,6 +237,56 @@ Returned in `authenticity_scores` when `keystrokes` or `cursor_trace` (or both) 
 | 40–59 | Uncertain: content seems human but behavioural signals are missing or mixed |
 | 20–39 | Likely non-human: paste-dominated, no corrections, suspicious timing, or farming signals |
 | 0–19 | Almost certainly non-human: bot timing, AI paste pattern, or content flagged GPT with matching behaviour |
+
+#### `keystroke_scores` signal breakdown
+
+Starts at **50**. Each signal below adjusts it up or down:
+
+| Signal | Points | Why it matters |
+|---|---|---|
+| Corrections present (backspace/delete used) | +15 | Humans make and fix mistakes; bots produce clean output |
+| Natural backspace rate (5–25% of keystrokes) | +10 | Too few = bot; too many = unusual |
+| Time to first keystroke > 500 ms | +5 | Suggests reading the question before typing |
+| Multiple focus cycles without paste-after-blur | +5 | Natural back-and-forth; not tab-in-paste-tab-out |
+| Suspect regular timing (IKI CV < 0.15) | −35 | Perfectly regular keystroke intervals = scripted automation |
+| AI paste pattern (large paste + no corrections) | −30 | Pasted from an AI tool with no editing |
+| High speed (> 120 WPM) | −20 | Faster than any human typist |
+| Survey farming (< 8 s completion, no corrections) | −20 | Rushing through with no genuine engagement |
+| Paste after blur (left field then pasted) | −15 | Classic copy-from-another-tab behaviour |
+| Large paste fraction (> 70% of response pasted) | −15 | Response is mostly pasted, not typed |
+
+`null` is returned for a field if no keystroke data was captured for that field.
+
+#### `cursor_scores` signal breakdown
+
+Starts at **50**. Each signal below adjusts it up or down:
+
+| Signal | Points | Why it matters |
+|---|---|---|
+| Variable velocity (velocity CV ≥ 0.4) | +15 | Humans move their mouse erratically; bots move smoothly |
+| ≥ 2 hover sessions (entered/left field multiple times) | +10 | Natural reading and re-reading behaviour |
+| Clicked to focus the field | +10 | Humans click; bots often focus programmatically |
+| ≥ 10 move events | +5 | Enough data to be meaningful |
+| Hovered over field for > 2 seconds | +5 | Suggests the respondent actually read the question |
+| Smooth motion (velocity CV < 0.20) | −30 | Primary bot signal — automated cursors move unnaturally smoothly |
+| Very smooth motion (velocity CV < 0.10) | −10 extra | Stronger penalty for extremely smooth paths |
+| No movement at all | −20 | Mouse never moved over the field |
+| Never hovered over field | −15 | Mouse never entered the field area |
+
+`null` is returned for a field if no cursor data was captured (e.g. the respondent used keyboard navigation only — this is common and does not indicate fraud).
+
+#### How to QA the scores
+
+Send test requests with known patterns and verify scores land in the expected range:
+
+| Test scenario | What to send | Expected score |
+|---|---|---|
+| Genuine human | Type slowly with backspaces and corrections | 70–100 |
+| AI paste | Single paste event, large character count, no corrections | 0–30 |
+| Bot timing | Keystroke events with perfectly regular inter-key intervals | 0–25 |
+| Survey farming | Very fast completion (< 8 s), no corrections, short response | 10–35 |
+| No telemetry | Omit `keystrokes` and `cursor_trace` entirely | `null` on all three score fields |
+| Keyboard-only navigation | Provide keystrokes but no cursor_trace | `cursor_scores` will be `null`; others scored normally |
 
 ---
 
@@ -430,6 +490,14 @@ This example shows a request with keystroke data. Field `"0"` shows a natural hu
     "0": 5,
     "1": 9
   },
+  "keystroke_scores": {
+    "0": 80,
+    "1": 5
+  },
+  "cursor_scores": {
+    "0": null,
+    "1": null
+  },
   "authenticity_scores": {
     "0": 84,
     "1": 7
@@ -437,7 +505,7 @@ This example shows a request with keystroke data. Field `"0"` shows a natural hu
 }
 ```
 
-Response `"1"` scores high on effort (polished, long text) but near-zero on authenticity: it was pasted in from an external source after tabbing away, with no typing, no corrections, and the content was flagged as GPT.
+Response `"1"` scores high on effort (polished, long text) but near-zero on authenticity: it was pasted in from an external source after tabbing away, with no typing, no corrections, and the content was flagged as GPT. `cursor_scores` are `null` because no `cursor_trace` was provided in this request.
 
 ---
 
