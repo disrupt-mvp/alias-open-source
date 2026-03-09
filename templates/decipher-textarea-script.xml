@@ -446,6 +446,8 @@ potentia_alias_data.d9.val = stringify(auth_map)
 potentia_alias_data.d10.val = probe_texts[0]
 potentia_alias_data.d11.val = probe_texts[1]
 potentia_alias_data.d12.val = probe_texts[2]
+potentia_alias_data.d13.val = stringify(r.get('keystroke_scores', {}))
+potentia_alias_data.d14.val = stringify(r.get('cursor_scores', {}))
 print 'DBG sent=' + str(p.data)[:200]
 print 'DBG ks_in_payload=' + str('keystrokes' in str(p.data))
 print raw
@@ -469,6 +471,8 @@ print status_val
   <row label="d10">alias-probe_T1</row>
   <row label="d11">alias-probe_T2</row>
   <row label="d12">alias-probe_T3</row>
+  <row label="d13">alias-keystroke_scores</row>
+  <row label="d14">alias-cursor_scores</row>
 </text>
 
 <!-- ======================================================

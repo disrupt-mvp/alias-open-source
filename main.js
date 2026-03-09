@@ -2,8 +2,8 @@ const he = require('he');
 const { levenshteinDistance, longestCommonSubstring } = require('./helpers/string-utils');
 const { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe, openAITranslate, openAIHumanityScore } = require('./helpers/openai-utils');
 const { checkForCrossDuplicateResponses, checkIfMatch } = require('./helpers/cross-duplicate-utils');
-const { extractAllKeystrokeFeatures } = require('./helpers/keystroke-utils');
-const { extractAllCursorFeatures } = require('./helpers/cursor-trace-utils');
+const { extractAllKeystrokeFeatures, computeKeystrokeScore } = require('./helpers/keystroke-utils');
+const { extractAllCursorFeatures, computeCursorScore } = require('./helpers/cursor-trace-utils');
 const { isJsonString, parseQueryString, parseJSON } = require('./helpers/json-utils');
 const config = require('./config');
 
@@ -282,6 +282,15 @@ exports.handler = async function (event, context) {
             humanityResults.map(({ id, result }) => [id, parseInt(result, 10) || 50])
         ) : undefined;
 
+        // Rule-based per-signal scores (no extra AI calls)
+        const keystrokeScores = allKeystrokeFeatures ? Object.fromEntries(
+            uniqueIds.map(id => [id, computeKeystrokeScore(allKeystrokeFeatures[id] || null)])
+        ) : undefined;
+
+        const cursorScores = allCursorFeatures ? Object.fromEntries(
+            uniqueIds.map(id => [id, computeCursorScore(allCursorFeatures[id] || null)])
+        ) : undefined;
+
         // Build optional result maps
         const sentimentRatings = include_sentiment ? Object.fromEntries(
             sentimentResults.map(({ id, result }) => [id, result])
@@ -317,6 +326,8 @@ exports.handler = async function (event, context) {
             checks,
             response_groups: responseGroups,
             effort_ratings: effortRatings,
+            ...(keystrokeScores !== undefined && { keystroke_scores: keystrokeScores }),
+            ...(cursorScores !== undefined && { cursor_scores: cursorScores }),
             ...(authenticityScores !== undefined && { authenticity_scores: authenticityScores }),
             ...(sentimentRatings !== undefined && { sentiment_ratings: sentimentRatings }),
             ...(themes !== undefined && { themes }),

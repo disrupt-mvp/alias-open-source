@@ -28,7 +28,13 @@ This repo contains an open-end verbatim quality assurance API for online surveys
 
 ### Behavioral bot detection
 
-Include `keystrokes` (from `keystroke-tracker.js`) and/or `cursor_trace` (from `cursor-trace.js`) in your request to enable authenticity scoring. When present, the API runs a second AI pass that combines content checks, effort ratings, typing rhythm, and cursor behaviour to produce a 0–100 human authenticity score per response. Use both trackers together for the strongest signal.
+Include `keystrokes` (from `keystroke-tracker.js`) and/or `cursor_trace` (from `cursor-trace.js`) in your request to enable behavioural scoring. Three scores are returned:
+
+- **`keystroke_scores`** — rule-based score from typing rhythm signals only (0–100 per response, or `null` per field if no keystroke data for that field)
+- **`cursor_scores`** — rule-based score from mouse behaviour signals only (0–100, or `null` per field if no cursor data)
+- **`authenticity_scores`** — AI-combined score synthesising keystroke, cursor, content flags, and effort rating (0–100). This is the primary signal for flagging fraudulent responses.
+
+Use all three trackers together for the strongest signal. Cursor signals are weaker in isolation — many genuine users Tab to fields without moving their mouse, which yields `null` cursor scores.
 
 ---
 
@@ -96,7 +102,9 @@ All output fields use string-numeric keys (`"0"`, `"1"`, `"2"`, …) that corres
 | `sentiment_ratings` | object | Only if `include_sentiment` | Per-response sentiment: `Positive`, `Negative`, `Neutral`, or `Mixed` |
 | `themes` | object | Only if `include_themes` | Per-response array of up to 3 theme strings |
 | `pii_flags` | object | Only if `include_pii` | Per-response array of detected PII types (empty array if none) |
-| `authenticity_scores` | object | Only if `keystrokes` or `cursor_trace` provided | Per-response human authenticity score (0–100) |
+| `keystroke_scores` | object | Only if `keystrokes` provided | Per-response rule-based keystroke score (0–100) |
+| `cursor_scores` | object | Only if `cursor_trace` provided | Per-response rule-based cursor score (0–100) |
+| `authenticity_scores` | object | Only if `keystrokes` or `cursor_trace` provided | Per-response AI-combined authenticity score (0–100) |
 | `followup_probes` | object | Only if `include_probes` | Per-response follow-up question string, or `null` if no probe needed |
 | `translations` | object | Only if `include_translation` | Per-response translated text (same as original if already English) |
 

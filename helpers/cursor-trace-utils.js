@@ -139,4 +139,39 @@ function extractAllCursorFeatures(cursorPayload) {
   return result;
 }
 
-module.exports = { extractCursorFeatures, extractAllCursorFeatures };
+/**
+ * Compute a rule-based cursor authenticity score (0–100) from extracted features.
+ * Returns null when features are null (no telemetry).
+ *
+ * Cursor signals are weaker in isolation than keystroke signals — many genuine
+ * users Tab to fields without moving their mouse. Weight accordingly and always
+ * use alongside keystroke_score and authenticity_scores.
+ *
+ * Base score: 50. Adjusted by individual signal deltas then clamped to [0, 100].
+ *
+ * @param {Object|null} features  - output of extractCursorFeatures()
+ * @returns {number|null}
+ */
+function computeCursorScore(features) {
+  if (!features) return null;
+
+  let score = 50;
+
+  // ── Positive signals (human-like behaviour) ─────────────────────────────
+  if (features.hoverSessions >= 2)  score += 10; // natural back-and-forth navigation
+  if (features.clickCount > 0)      score += 10; // clicked to focus — typical human behaviour
+  if (features.velocityCv !== null && features.velocityCv >= 0.4) score += 15; // variable speed = human
+  if (features.totalMoveEvents >= 10) score += 5; // meaningful movement data present
+  if (features.totalHoverMs > 2000) score += 5;  // time spent considering the field
+
+  // ── Negative signals (bot / automation indicators) ──────────────────────
+  if (features.suspectNoMovement)   score -= 20; // no movement at all — keyboard-only or headless
+  if (features.suspectSmoothMotion) score -= 30; // unnaturally uniform velocity
+  if (features.suspectNoHover)      score -= 15; // never hovered over the field
+  // Extra penalty for very smooth motion (CV < 0.10 = almost perfectly linear)
+  if (features.velocityCv !== null && features.velocityCv < 0.10) score -= 10;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+module.exports = { extractCursorFeatures, extractAllCursorFeatures, computeCursorScore };

@@ -216,4 +216,35 @@ function extractAllKeystrokeFeatures(keystrokesPayload) {
   return result;
 }
 
-module.exports = { extractKeystrokeFeatures, extractAllKeystrokeFeatures };
+/**
+ * Compute a rule-based keystroke authenticity score (0–100) from extracted features.
+ * Returns null when features are null (no telemetry).
+ *
+ * Base score: 50. Adjusted by individual signal deltas then clamped to [0, 100].
+ *
+ * @param {Object|null} features  - output of extractKeystrokeFeatures()
+ * @returns {number|null}
+ */
+function computeKeystrokeScore(features) {
+  if (!features) return null;
+
+  let score = 50;
+
+  // ── Positive signals (human-like behaviour) ─────────────────────────────
+  if (features.correctionPresent) score += 15;
+  if (features.backspaceRate >= 0.05 && features.backspaceRate <= 0.25) score += 10;
+  if (features.timeToFirstKeystroke !== null && features.timeToFirstKeystroke > 500) score += 5;
+  if (features.focusCount > 1 && !features.pasteAfterBlur) score += 5;
+
+  // ── Negative signals (bot / fraud indicators) ───────────────────────────
+  if (features.suspectRegularTiming) score -= 35;
+  if (features.suspectHighSpeed)     score -= 20;
+  if (features.suspectAIPaste)       score -= 30;
+  if (features.suspectSurveyFarming) score -= 20;
+  if (features.pasteAfterBlur)       score -= 15;
+  if (features.largePastePresent && features.pasteCharFraction > 0.7) score -= 15;
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+module.exports = { extractKeystrokeFeatures, extractAllKeystrokeFeatures, computeKeystrokeScore };
