@@ -226,23 +226,14 @@ try:
     ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
 except Exception as ks_exc:
     print 'DBG ks_raw exception: ' + str(ks_exc)
-# HTML-decode in case Decipher encodes quotes/ampersands in stored field values
+# HTML-decode using plain replace (no imports needed - HTMLParser/html unavailable in Decipher env)
 if ks_raw:
-    try:
-        from HTMLParser import HTMLParser as AliasHTMLParser
-        ks_raw = AliasHTMLParser().unescape(ks_raw)
-    except Exception as ks_he:
-        print 'DBG ks_html_decode error: ' + str(ks_he)
+    ks_raw = ks_raw.replace('&quot;', '"').replace('&#x5B;', '[').replace('&#x5D;', ']').replace('&amp;', '&')
 print 'DBG ks_raw len=' + str(len(ks_raw)) + ' preview=' + repr(ks_raw[:60] if ks_raw else '')
 ks_field = ''
-if ks_raw:
-    try:
-        import json as aliasjson
-        aliasjson.loads(ks_raw)
-        ks_field = ', "keystrokes": %s' % ks_raw
-        print 'DBG ks_field set ok len=' + str(len(ks_field))
-    except Exception as ks_err:
-        print 'DBG ks_raw json error: ' + str(ks_err) + ' raw_preview=' + repr(ks_raw[:60])
+if ks_raw and ks_raw.startswith('{'):
+    ks_field = ', "keystrokes": ' + ks_raw
+    print 'DBG ks_field set ok len=' + str(len(ks_field))
 p.data = """
 {
   "survey_id": "%s",
@@ -349,20 +340,6 @@ potentia_alias_data.d11.val = probe_texts[1]
 potentia_alias_data.d12.val = probe_texts[2]
 print 'DBG sent=' + str(p.data)[:200]
 print 'DBG ks_in_payload=' + str('keystrokes' in str(p.data))
-ks_recheck = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
-print 'DBG ks_r1=' + str(len(ks_recheck)) + ' first60=' + repr(ks_recheck[:60])
-if ks_recheck:
-    try:
-        from HTMLParser import HTMLParser as AliasHP2
-        ks_recheck = AliasHP2().unescape(ks_recheck)
-    except Exception as rche:
-        print 'DBG recheck_html_err=' + str(rche)
-    try:
-        import json as rcjson
-        rcjson.loads(ks_recheck)
-        print 'DBG recheck_json=VALID after_html_decode first60=' + repr(ks_recheck[:60])
-    except Exception as rce:
-        print 'DBG recheck_json=INVALID err=' + str(rce) + ' first60=' + repr(ks_recheck[:60])
 print raw
 print status_val
 </exec>
