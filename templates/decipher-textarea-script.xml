@@ -228,7 +228,7 @@ except Exception as ks_exc:
     print 'DBG ks_raw exception: ' + str(ks_exc)
 # HTML-decode using plain replace (no imports needed - HTMLParser/html unavailable in Decipher env)
 if ks_raw:
-    ks_raw = ks_raw.replace('&quot;', '"').replace('&#x5B;', '[').replace('&#x5D;', ']')
+    ks_raw = ks_raw.replace('&amp;quot;', '"').replace('&amp;#x5B;', '[').replace('&amp;#x5D;', ']')
 print 'DBG ks_raw len=' + str(len(ks_raw)) + ' preview=' + repr(ks_raw[:60] if ks_raw else '')
 ks_field = ''
 if ks_raw and ks_raw.startswith('{'):
