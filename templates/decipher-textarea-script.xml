@@ -223,7 +223,7 @@ p.alias_client_dict['num_non_empty'] = num_non_empty
 # Read keystroke payload from hidden field
 ks_raw = ''
 try:
-    ks_raw = safe_string(allQuestions['alias_ks_store'].val).strip()
+    ks_raw = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
 except Exception as ks_exc:
     print 'DBG ks_raw exception: ' + str(ks_exc)
 print 'DBG ks_raw len=' + str(len(ks_raw)) + ' val=' + repr(ks_raw[:120] if ks_raw else '')
