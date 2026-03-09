@@ -429,7 +429,8 @@ for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
     if probe_text in ('None', 'null', 'none', ''):
         probe_text = ''
     idx = p.alias_client_dict['question_labels'].index(label)
-    if 0 <= idx < 3:
+    # NOTE: Decipher exec uses `le` / `lt` instead of `<=` / `<` for comparisons
+    if 0 le idx lt 3:
         probe_texts[idx] = probe_text
 # Survey-level holder
 potentia_alias_data.d0.val = stringify(raw)
@@ -482,7 +483,8 @@ print status_val
   optional="1"
   width="50"
   cond="allQuestions['potentia_alias_data'].d10.val not in ('', 'None')">
-  <title>[pipe: potentia_alias_data.d10]</title>
+  <!-- NOTE: Decipher pipe syntax uses ${} not [pipe: ...] -->
+  <title>${potentia_alias_data.d10}</title>
   <comment>Please type in</comment>
   <row label="response"/>
 </textarea>
@@ -492,7 +494,7 @@ print status_val
   optional="1"
   width="50"
   cond="allQuestions['potentia_alias_data'].d11.val not in ('', 'None')">
-  <title>[pipe: potentia_alias_data.d11]</title>
+  <title>${potentia_alias_data.d11}</title>
   <comment>Please type in</comment>
   <row label="response"/>
 </textarea>
@@ -502,7 +504,7 @@ print status_val
   optional="1"
   width="50"
   cond="allQuestions['potentia_alias_data'].d12.val not in ('', 'None')">
-  <title>[pipe: potentia_alias_data.d12]</title>
+  <title>${potentia_alias_data.d12}</title>
   <comment>Please type in</comment>
   <row label="response"/>
 </textarea>
