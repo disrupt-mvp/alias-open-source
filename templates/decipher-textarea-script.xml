@@ -288,14 +288,15 @@ def safe_string(val):
             return ''
 def jescape(s):
     if s is None:
-        s = ""
+        s = u""
     try:
-        s = str(s)
+        if not isinstance(s, unicode):
+            s = unicode(s, 'utf-8', errors='replace')
     except:
-        s = ""
-    s = s.replace("\\", "\\\\")
-    s = s.replace('"', '\\"')
-    s = s.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
+        s = u""
+    s = s.replace(u"\\", u"\\\\")
+    s = s.replace(u'"', u'\\"')
+    s = s.replace(u"\r", u"\\r").replace(u"\n", u"\\n").replace(u"\t", u"\\t")
     return s
 questions_json = []
 responses_json = []
@@ -340,7 +341,7 @@ ct_field = ''
 if ct_raw and ct_raw.startswith('{'):
     ct_field = ', "cursor_trace": ' + ct_raw
     print 'DBG ct_field set ok len=' + str(len(ct_field))
-p.data = """
+p.data = u"""
 {
   "survey_id": "%s",
   "participant_id": "%s",
@@ -351,12 +352,12 @@ p.data = """
 """ % (
     jescape(p.alias_client_dict['survey_id']),
     jescape(p.alias_client_dict['participant_id']),
-    ','.join(questions_json),
-    ','.join(responses_json),
+    u','.join(questions_json),
+    u','.join(responses_json),
     ks_field,
     ct_field
 )
-p.data = p.data.strip()
+p.data = p.data.strip().encode('utf-8')
 print p.data
 </exec>
 <logic
