@@ -355,20 +355,24 @@ var FACE_CAPTURE_INTERVAL_MS = 4000; // capture one frame every 4 seconds per fo
   }
 
   function sendFrame(frameB64, fieldIdx) {
+    console.log('[alias-face] sending frame field=' + fieldIdx + ' b64len=' + frameB64.length + ' to ' + FACE_FRAME_ENDPOINT);
     try {
       var xhr = new XMLHttpRequest();
       xhr.open('POST', FACE_FRAME_ENDPOINT, true);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Authorization', 'Bearer ' + FACE_FRAME_AUTH);
       xhr.onload = function() {
+        console.log('[alias-face] xhr.onload status=' + xhr.status + ' response=' + xhr.responseText.slice(0, 100));
         if (xhr.status === 200) {
           try {
             var result = JSON.parse(xhr.responseText);
             accumulateFaceData(fieldIdx, result);
           } catch(e) { console.warn('[alias-face] parse error:', e.message); }
+        } else {
+          console.warn('[alias-face] server error status=' + xhr.status + ' body=' + xhr.responseText.slice(0, 200));
         }
       };
-      xhr.onerror = function() { console.warn('[alias-face] frame send failed (network error)'); };
+      xhr.onerror = function() { console.warn('[alias-face] frame send failed — likely CORS or network error. Check DevTools Network tab.'); };
       xhr.send(JSON.stringify({ session_id: 'decipher_' + performance.now(), question_idx: fieldIdx, frame_b64: frameB64 }));
     } catch(e) {
       console.warn('[alias-face] sendFrame error:', e.message);

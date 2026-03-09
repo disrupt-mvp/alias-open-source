@@ -114,7 +114,19 @@ app.post("/v1/check", requireAuth, async (req, res) => {
 // Face-frame endpoint: called by FaceTracker JS in Decipher survey pages.
 // Receives a single webcam frame, classifies emotion via GPT-4o Vision, returns result.
 // FACE_ANALYSIS_ENABLED toggle in alias_face_store JS controls whether this is called at all.
+// CORS is required here because this is called directly from the browser (cross-origin).
+function addFaceCorsHeaders(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+}
+// Preflight handler — browsers send OPTIONS before cross-origin POST with Authorization header
+app.options("/v1/face-frame", (req, res) => {
+  addFaceCorsHeaders(res);
+  res.sendStatus(204);
+});
 app.post("/v1/face-frame", requireAuth, async (req, res) => {
+  addFaceCorsHeaders(res);
   try {
     const { session_id, question_idx, frame_b64 } = req.body || {};
     if (!frame_b64 || typeof frame_b64 !== "string") {
