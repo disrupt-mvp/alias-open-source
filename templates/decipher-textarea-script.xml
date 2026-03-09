@@ -349,7 +349,20 @@ potentia_alias_data.d11.val = probe_texts[1]
 potentia_alias_data.d12.val = probe_texts[2]
 print 'DBG sent=' + str(p.data)[:200]
 print 'DBG ks_in_payload=' + str('keystrokes' in str(p.data))
-print 'DBG ks_r1=' + str(len(safe_string(allQuestions['alias_ks_store'].r1.val).strip()))
+ks_recheck = safe_string(allQuestions['alias_ks_store'].r1.val).strip()
+print 'DBG ks_r1=' + str(len(ks_recheck)) + ' first60=' + repr(ks_recheck[:60])
+if ks_recheck:
+    try:
+        from HTMLParser import HTMLParser as AliasHP2
+        ks_recheck = AliasHP2().unescape(ks_recheck)
+    except Exception as rche:
+        print 'DBG recheck_html_err=' + str(rche)
+    try:
+        import json as rcjson
+        rcjson.loads(ks_recheck)
+        print 'DBG recheck_json=VALID after_html_decode first60=' + repr(ks_recheck[:60])
+    except Exception as rce:
+        print 'DBG recheck_json=INVALID err=' + str(rce) + ' first60=' + repr(ks_recheck[:60])
 print raw
 print status_val
 </exec>
