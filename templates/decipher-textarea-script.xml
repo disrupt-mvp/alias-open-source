@@ -209,7 +209,7 @@ payload_labels = []
 num_non_empty = 0
 for label in p.alias_client_dict['question_labels']:
     q = allQuestions[label]
-    val = safe_string(q.val)
+    val = safe_string(q.response.val)
     p.alias_client_dict['responses'][label] = val
     p.alias_client_dict['questions'][label] = label
     # ONLY send non-empty responses
