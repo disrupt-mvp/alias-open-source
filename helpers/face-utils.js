@@ -82,10 +82,15 @@ function extractAllFaceFeatures(faceData) {
  * Base score: 50. Adjusted by individual signal deltas then clamped to [0, 100].
  *
  * @param {Object|null} features - output of extractFaceFeatures()
- * @returns {number|null}
+ * @returns {number|string|null}
  */
 function computeFaceScore(features) {
   if (!features) return null;
+
+  // All captured frames had no face visible
+  if (features.dominant === 'unknown' && (features.distribution['unknown'] || 0) === 1) {
+    return 'no face';
+  }
 
   let score = 50;
 
