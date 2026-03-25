@@ -636,6 +636,22 @@ for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
     # NOTE: Decipher exec uses `le` / `lt` instead of `<=` / `<` for comparisons
     if 0 le idx lt 3:
         probe_texts[idx] = probe_text
+# Failsafe: if API did not return 200, show a predefined probe for every
+# question that had a non-empty response so the probe page still fires.
+FALLBACK_PROBE = 'Anything else to add?'
+api_ok = False
+try:
+    api_ok = str(status_val) == '200'
+except:
+    pass
+if not api_ok:
+    for label in p.alias_client_dict.get('payload_labels', []):
+        try:
+            idx = p.alias_client_dict['question_labels'].index(label)
+            if 0 le idx lt 3:
+                probe_texts[idx] = FALLBACK_PROBE
+        except:
+            pass
 # Survey-level holder
 potentia_alias_data.d0.val = stringify(raw)
 potentia_alias_data.d1.val = r.get('error', False)
