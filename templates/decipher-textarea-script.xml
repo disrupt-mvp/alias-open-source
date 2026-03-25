@@ -1,0 +1,721 @@
+<exec sst="0">
+p.alias_question_labels = ['T1','T2','T3']
+p.alias_client_dict = {
+    'responses': {},
+    'questions': {},
+    'survey_id': 'test_cases',
+    'participant_id': uuid,
+    'num_non_empty': 0,
+    'question_labels': p.alias_question_labels[:],
+    'payload_labels': []
+}
+</exec>
+
+<textarea
+  label="T1"
+  height="10"
+  optional="0"
+  width="50">
+  <title>What would you say the message of the adverts were?</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+  <row label="d1" cond="False">alias-flagged</row>
+  <row label="d2" cond="False">alias-checks</row>
+  <row label="d3" cond="False">alias-group</row>
+  <row label="d4" cond="False">alias-effort</row>
+  <row label="d5" cond="False">alias-status</row>
+  <row label="d6" cond="False">alias-authenticity_score</row>
+  <style name="question.after"><![CDATA[
+<script>
+window.KeystrokeTracker = (function() {
+  const fieldData = {};
+  function attach(fieldId, el, onEvent) {
+    const id = String(fieldId);
+    fieldData[id] = { events: [] };
+    let startTime = null;
+    function ts() {
+      return startTime !== null ? Math.round(performance.now() - startTime) : 0;
+    }
+    el.addEventListener('focus', () => {
+      if (startTime === null) {
+        startTime = performance.now();
+        fieldData[id].events.push({ t: 0, type: 'f', val: null });
+      } else {
+        fieldData[id].events.push({ t: ts(), type: 'f', val: null });
+      }
+      if (onEvent) onEvent();
+    }, { passive: true });
+    el.addEventListener('blur', () => {
+      fieldData[id].events.push({ t: ts(), type: 'b', val: null });
+      if (onEvent) onEvent();
+    }, { passive: true });
+    el.addEventListener('keydown', (e) => {
+      fieldData[id].events.push({ t: ts(), type: 'k', val: e.key });
+      if (onEvent) onEvent();
+    }, { passive: true });
+    el.addEventListener('paste', (e) => {
+      var len = 0;
+      try {
+        var text = (e.clipboardData || window.clipboardData).getData('text');
+        len = text ? text.length : 0;
+      } catch (_) {}
+      fieldData[id].events.push({ t: ts(), type: 'p', val: len });
+      if (onEvent) onEvent();
+    }, { passive: true });
+    el.addEventListener('copy', () => {
+      var len = 0;
+      try {
+        var sel = window.getSelection();
+        len = sel ? sel.toString().length : 0;
+      } catch (_) {}
+      fieldData[id].events.push({ t: ts(), type: 'c', val: len });
+      if (onEvent) onEvent();
+    }, { passive: true });
+  }
+  function getPayload() { return JSON.parse(JSON.stringify(fieldData)); }
+  function reset() { Object.keys(fieldData).forEach(function(k) { delete fieldData[k]; }); }
+  return { attach: attach, getPayload: getPayload, reset: reset };
+}());
+</script>
+]]></style>
+</textarea>
+<textarea
+  label="T2"
+  height="10"
+  optional="0"
+  width="50">
+  <title>What would you say the message of the adverts were?</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+  <row label="d1" cond="False">alias-flagged</row>
+  <row label="d2" cond="False">alias-checks</row>
+  <row label="d3" cond="False">alias-group</row>
+  <row label="d4" cond="False">alias-effort</row>
+  <row label="d5" cond="False">alias-status</row>
+  <row label="d6" cond="False">alias-authenticity_score</row>
+</textarea>
+<textarea
+  label="T3"
+  height="10"
+  optional="1"
+  width="50">
+  <title>What would you say the message of the adverts were?</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+  <row label="d1" cond="False">alias-flagged</row>
+  <row label="d2" cond="False">alias-checks</row>
+  <row label="d3" cond="False">alias-group</row>
+  <row label="d4" cond="False">alias-effort</row>
+  <row label="d5" cond="False">alias-status</row>
+  <row label="d6" cond="False">alias-authenticity_score</row>
+</textarea>
+
+<!-- ======================================================
+     Keystroke store — visible so alias_ks_store_r1 renders
+     with a predictable ID. Real-time sync via onEvent callback
+     makes the value update as the respondent types.
+     ====================================================== -->
+<text
+  label="alias_ks_store"
+  size="9999"
+  length="20000"
+  where="execute,survey,report">
+  <title>keystroke payload</title>
+  <row label="r1">ks-data</row>
+  <style name="question.after"><![CDATA[
+<script>
+(function() {
+  var earlyInputs = document.querySelectorAll('input[type="text"]');
+  console.log('[alias-ks] sync marker: found', earlyInputs.length, 'text inputs');
+  if (earlyInputs.length) {
+    earlyInputs[earlyInputs.length - 1].setAttribute('data-ks-store', '1');
+    console.log('[alias-ks] marked input:', earlyInputs[earlyInputs.length - 1].name || earlyInputs[earlyInputs.length - 1].id || '(no name/id)');
+  } else {
+    console.warn('[alias-ks] WARNING: no input[type="text"] found — alias_ks_store not marked');
+  }
+
+  function attachAll() {
+    var hidden = document.querySelector('[data-ks-store="1"]');
+    console.log('[alias-ks] attachAll: hidden=', hidden, 'window.KeystrokeTracker=', typeof window.KeystrokeTracker);
+    if (!hidden) { console.warn('[alias-ks] WARNING: hidden field not found'); return; }
+    if (!window.KeystrokeTracker) { console.warn('[alias-ks] WARNING: window.KeystrokeTracker not defined'); return; }
+
+    function syncToHidden() {
+      if (hidden) {
+        var payload = JSON.stringify(window.KeystrokeTracker.getPayload());
+        hidden.value = payload;
+        try { hidden.dispatchEvent(new Event('input', { bubbles: true })); } catch(_) {}
+        try { hidden.dispatchEvent(new Event('change', { bubbles: true })); } catch(_) {}
+        console.log('[alias-ks] syncToHidden: wrote', payload.length, 'chars to hidden field');
+      }
+    }
+
+    document.querySelectorAll('textarea').forEach(function(el, idx) {
+      window.KeystrokeTracker.attach(idx, el, syncToHidden);
+    });
+    console.log('[alias-ks] attached to', document.querySelectorAll('textarea').length, 'textareas');
+    var form = document.querySelector('form');
+    if (form) {
+      form.addEventListener('submit', function() {
+        try {
+          syncToHidden();
+          console.log('[alias-ks] final submit value len=', hidden.value.length, 'preview=', hidden.value.slice(0, 60));
+        } catch(e) { console.error('[alias-ks] submit sync error:', e); }
+      }, { capture: true });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachAll);
+  } else {
+    attachAll();
+  }
+})();
+</script>
+]]></style>
+</text>
+
+<!-- ======================================================
+     Cursor store — captures mouse behaviour per field.
+     Uses the same sync pattern as alias_ks_store.
+     ====================================================== -->
+<text
+  label="alias_ct_store"
+  size="9999"
+  length="20000"
+  where="execute,survey,report">
+  <title>cursor trace payload</title>
+  <row label="r1">ct-data</row>
+  <style name="question.after"><![CDATA[
+<script>
+window.CursorTrace = (function() {
+  var THROTTLE_MS = 50;
+  var fieldData = {};
+  function attach(fieldId, el) {
+    var id = String(fieldId);
+    fieldData[id] = { events: [] };
+    var startTime = null;
+    var lastX = null;
+    var lastY = null;
+    var lastMoveTime = -Infinity;
+    function initTime() { if (startTime === null) startTime = performance.now(); }
+    function ts() { return startTime !== null ? Math.round(performance.now() - startTime) : 0; }
+    el.addEventListener('mouseenter', function(e) {
+      initTime(); lastX = e.clientX; lastY = e.clientY;
+      fieldData[id].events.push({ t: ts(), type: 'e' });
+    }, { passive: true });
+    el.addEventListener('mouseleave', function() {
+      initTime(); fieldData[id].events.push({ t: ts(), type: 'l' });
+    }, { passive: true });
+    el.addEventListener('mousemove', function(e) {
+      var now = performance.now();
+      if (now - lastMoveTime < THROTTLE_MS) return;
+      lastMoveTime = now; initTime();
+      var dx = lastX !== null ? Math.round(e.clientX - lastX) : 0;
+      var dy = lastY !== null ? Math.round(e.clientY - lastY) : 0;
+      lastX = e.clientX; lastY = e.clientY;
+      fieldData[id].events.push({ t: ts(), type: 'm', dx: dx, dy: dy });
+    }, { passive: true });
+    el.addEventListener('click', function() {
+      initTime(); fieldData[id].events.push({ t: ts(), type: 'c' });
+    }, { passive: true });
+  }
+  function getPayload() { return JSON.parse(JSON.stringify(fieldData)); }
+  function reset() { Object.keys(fieldData).forEach(function(k) { delete fieldData[k]; }); }
+  return { attach: attach, getPayload: getPayload, reset: reset };
+}());
+
+(function() {
+  var allInputs = document.querySelectorAll('input[type="text"]');
+  if (allInputs.length) {
+    allInputs[allInputs.length - 1].setAttribute('data-ct-store', '1');
+  }
+
+  function attachAll() {
+    var hidden = document.querySelector('[data-ct-store="1"]');
+    if (!hidden) { console.warn('[alias-ct] WARNING: hidden field not found'); return; }
+
+    function syncToHidden() {
+      var payload = JSON.stringify(window.CursorTrace.getPayload());
+      hidden.value = payload;
+      try { hidden.dispatchEvent(new Event('input', { bubbles: true })); } catch(_) {}
+      try { hidden.dispatchEvent(new Event('change', { bubbles: true })); } catch(_) {}
+      console.log('[alias-ct] syncToHidden: wrote', payload.length, 'chars');
+    }
+
+    document.querySelectorAll('textarea').forEach(function(el, idx) {
+      window.CursorTrace.attach(idx, el);
+    });
+    console.log('[alias-ct] attached to', document.querySelectorAll('textarea').length, 'textareas');
+    var form = document.querySelector('form');
+    if (form) {
+      form.addEventListener('submit', function() {
+        try { syncToHidden(); } catch(e) { console.error('[alias-ct] submit sync error:', e); }
+      }, { capture: true });
+    }
+    // Also sync on mouse leave from any textarea (in case user doesn't interact again before submit)
+    document.querySelectorAll('textarea').forEach(function(el) {
+      el.addEventListener('mouseleave', syncToHidden, { passive: true });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachAll);
+  } else {
+    attachAll();
+  }
+})();
+</script>
+]]></style>
+</text>
+
+<!-- ======================================================
+     Face analysis store — captures per-question emotion
+     summaries from the FaceTracker. Only active when
+     FACE_ANALYSIS_ENABLED = true. Toggle safely with no
+     impact on existing data when set to false (default).
+     ====================================================== -->
+<text
+  label="alias_face_store"
+  size="9999"
+  length="20000"
+  where="execute,survey,report">
+  <title>face analysis payload</title>
+  <row label="r1">face-data</row>
+  <style name="question.after"><![CDATA[
+<script>
+// ── Face Analysis Toggle ───────────────────────────────────────────────────────
+// Set to true to enable camera-based emotion analysis for this survey.
+// When false: no camera prompt, no frames sent, no face_data in API payload.
+var FACE_ANALYSIS_ENABLED = false;
+
+// ── Configuration ─────────────────────────────────────────────────────────────
+var FACE_FRAME_ENDPOINT = 'https://open-qa.onrender.com/v1/face-frame';
+var FACE_FRAME_AUTH = '6e6fee6f536cf8a907b52c7d897e9a55';
+var FACE_CAPTURE_INTERVAL_MS = 4000; // capture one frame every 4 seconds per focused field
+
+// ── FaceTracker ───────────────────────────────────────────────────────────────
+(function() {
+  if (!FACE_ANALYSIS_ENABLED) return;
+
+  // Mark the hidden face store field so we can find it
+  var allInputs = document.querySelectorAll('input[type="text"]');
+  if (allInputs.length) {
+    allInputs[allInputs.length - 1].setAttribute('data-face-store', '1');
+  }
+
+  // Per-question accumulated face data
+  // { "0": { samples, dominant, distribution, engagement, looking_away_count, others_present_count } }
+  var faceData = {};
+  var currentFieldIdx = null;
+  var captureTimer = null;
+  var videoStream = null;
+  var videoEl = null;
+  var canvasEl = null;
+
+  function initCamera(onReady) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.warn('[alias-face] getUserMedia not supported');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: 'user' } })
+      .then(function(stream) {
+        videoStream = stream;
+        videoEl = document.createElement('video');
+        videoEl.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:320px;height:240px;';
+        videoEl.srcObject = stream;
+        videoEl.autoplay = true;
+        videoEl.playsInline = true;
+        videoEl.muted = true;
+        document.body.appendChild(videoEl);
+        canvasEl = document.createElement('canvas');
+        canvasEl.width = 320;
+        canvasEl.height = 240;
+        videoEl.addEventListener('loadedmetadata', function() {
+          console.log('[alias-face] camera ready');
+          if (onReady) onReady();
+        });
+      })
+      .catch(function(err) {
+        console.warn('[alias-face] camera permission denied or unavailable:', err.message);
+      });
+  }
+
+  function captureFrame() {
+    if (!videoEl || !canvasEl || !videoStream || currentFieldIdx === null) return;
+    try {
+      var ctx = canvasEl.getContext('2d');
+      ctx.drawImage(videoEl, 0, 0, 320, 240);
+      var dataUrl = canvasEl.toDataURL('image/jpeg', 0.7);
+      var frameB64 = dataUrl.split(',')[1];
+      if (frameB64) sendFrame(frameB64, currentFieldIdx);
+    } catch(e) {
+      console.warn('[alias-face] capture error:', e.message);
+    }
+  }
+
+  function sendFrame(frameB64, fieldIdx) {
+    console.log('[alias-face] sending frame field=' + fieldIdx + ' b64len=' + frameB64.length + ' to ' + FACE_FRAME_ENDPOINT);
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', FACE_FRAME_ENDPOINT, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + FACE_FRAME_AUTH);
+      xhr.onload = function() {
+        console.log('[alias-face] xhr.onload status=' + xhr.status + ' response=' + xhr.responseText.slice(0, 100));
+        if (xhr.status === 200) {
+          try {
+            var result = JSON.parse(xhr.responseText);
+            accumulateFaceData(fieldIdx, result);
+          } catch(e) { console.warn('[alias-face] parse error:', e.message); }
+        } else {
+          console.warn('[alias-face] server error status=' + xhr.status + ' body=' + xhr.responseText.slice(0, 200));
+        }
+      };
+      xhr.onerror = function() { console.warn('[alias-face] frame send failed — likely CORS or network error. Check DevTools Network tab.'); };
+      xhr.send(JSON.stringify({ session_id: 'decipher_' + performance.now(), question_idx: fieldIdx, frame_b64: frameB64 }));
+    } catch(e) {
+      console.warn('[alias-face] sendFrame error:', e.message);
+    }
+  }
+
+  function accumulateFaceData(fieldIdx, result) {
+    var key = String(fieldIdx);
+    if (!faceData[key]) {
+      faceData[key] = { samples: 0, dominant: null, distribution: {}, engagement: 0, looking_away_count: 0, others_present_count: 0 };
+    }
+    var entry = faceData[key];
+    entry.samples++;
+    var emotion = result.emotion || 'unknown';
+    entry.distribution[emotion] = (entry.distribution[emotion] || 0) + 1;
+    var maxCount = 0;
+    Object.keys(entry.distribution).forEach(function(em) {
+      if (entry.distribution[em] > maxCount) { maxCount = entry.distribution[em]; entry.dominant = em; }
+    });
+    if (!result.looking_at_screen) entry.looking_away_count++;
+    if (result.others_present) entry.others_present_count++;
+    var engScore = typeof result.engagement_score === 'number' ? result.engagement_score : 5;
+    entry.engagement = ((entry.engagement * (entry.samples - 1)) + engScore) / entry.samples;
+    syncToHidden();
+    console.log('[alias-face] sample recorded field=' + key + ' emotion=' + emotion + ' engagement=' + engScore);
+  }
+
+  function startCapture(fieldIdx) {
+    currentFieldIdx = fieldIdx;
+    stopCapture();
+    captureFrame();
+    captureTimer = setInterval(captureFrame, FACE_CAPTURE_INTERVAL_MS);
+  }
+
+  function stopCapture() {
+    if (captureTimer) { clearInterval(captureTimer); captureTimer = null; }
+  }
+
+  function stopCamera() {
+    stopCapture();
+    if (videoStream) {
+      videoStream.getTracks().forEach(function(t) { t.stop(); });
+      videoStream = null;
+    }
+    if (videoEl && videoEl.parentNode) { videoEl.parentNode.removeChild(videoEl); videoEl = null; }
+  }
+
+  function syncToHidden() {
+    var hidden = document.querySelector('[data-face-store="1"]');
+    if (hidden) {
+      var payload = JSON.stringify(faceData);
+      hidden.value = payload;
+      try { hidden.dispatchEvent(new Event('input', { bubbles: true })); } catch(_) {}
+      try { hidden.dispatchEvent(new Event('change', { bubbles: true })); } catch(_) {}
+      console.log('[alias-face] syncToHidden: wrote', payload.length, 'chars');
+    }
+  }
+
+  function attachAll() {
+    var hidden = document.querySelector('[data-face-store="1"]');
+    if (!hidden) { console.warn('[alias-face] face store field not found'); return; }
+    initCamera(function() {
+      document.querySelectorAll('textarea').forEach(function(el, idx) {
+        el.addEventListener('focus', function() { startCapture(idx); });
+        el.addEventListener('blur', function() { stopCapture(); currentFieldIdx = null; });
+      });
+      console.log('[alias-face] attached to', document.querySelectorAll('textarea').length, 'textareas');
+      var form = document.querySelector('form');
+      if (form) {
+        form.addEventListener('submit', function() {
+          try { syncToHidden(); stopCamera(); } catch(e) { console.error('[alias-face] submit error:', e); }
+        }, { capture: true });
+      }
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attachAll);
+  } else {
+    attachAll();
+  }
+})();
+</script>
+]]></style>
+</text>
+
+<suspend/>
+<exec>
+bearer_token = "6e6fee6f536cf8a907b52c7d897e9a55"
+p.headers = {
+    "Authorization": "Bearer %s" % bearer_token,
+    "Content-Type": "application/json"
+}
+def safe_string(val):
+    if val is None:
+        return ''
+    try:
+        return unicode(val)
+    except:
+        try:
+            return str(val)
+        except:
+            return ''
+def jescape(s):
+    if s is None:
+        s = u""
+    try:
+        if not isinstance(s, unicode):
+            s = unicode(s, 'utf-8', errors='replace')
+    except:
+        s = u""
+    s = s.replace(u"\\", u"\\\\")
+    s = s.replace(u'"', u'\\"')
+    s = s.replace(u"\r", u"\\r").replace(u"\n", u"\\n").replace(u"\t", u"\\t")
+    return s
+questions_json = []
+responses_json = []
+payload_labels = []
+num_non_empty = 0
+for label in p.alias_client_dict['question_labels']:
+    q = allQuestions[label]
+    val = safe_string(q.response.val)
+    p.alias_client_dict['responses'][label] = val
+    p.alias_client_dict['questions'][label] = label
+    # ONLY send non-empty responses
+    if val.strip():
+        questions_json.append('"%s"' % jescape(label))
+        responses_json.append('"%s"' % jescape(val))
+        payload_labels.append(label)
+        num_non_empty += 1
+p.alias_client_dict['payload_labels'] = payload_labels
+p.alias_client_dict['num_non_empty'] = num_non_empty
+# Read keystroke payload from hidden field
+ks_raw = ''
+try:
+    ks_raw = safe_string(allQuestions['alias_ks_store'].val).strip()
+except Exception as ks_exc:
+    print 'DBG ks_raw exception: ' + str(ks_exc)
+# HTML-decode using plain replace (no imports needed - HTMLParser/html unavailable in Decipher env)
+if ks_raw:
+    ks_raw = ks_raw.replace('&amp;quot;', '"').replace('&amp;#x5B;', '[').replace('&amp;#x5D;', ']')
+print 'DBG ks_raw len=' + str(len(ks_raw)) + ' preview=' + repr(ks_raw[:60] if ks_raw else '')
+ks_field = ''
+if ks_raw and ks_raw.startswith('{'):
+    ks_field = ', "keystrokes": ' + ks_raw
+    print 'DBG ks_field set ok len=' + str(len(ks_field))
+ct_raw = ''
+try:
+    ct_raw = safe_string(allQuestions['alias_ct_store'].val).strip()
+except Exception as ct_exc:
+    print 'DBG ct_raw exception: ' + str(ct_exc)
+if ct_raw:
+    ct_raw = ct_raw.replace('&amp;quot;', '"').replace('&amp;#x5B;', '[').replace('&amp;#x5D;', ']')
+print 'DBG ct_raw len=' + str(len(ct_raw)) + ' preview=' + repr(ct_raw[:60] if ct_raw else '')
+ct_field = ''
+if ct_raw and ct_raw.startswith('{'):
+    ct_field = ', "cursor_trace": ' + ct_raw
+    print 'DBG ct_field set ok len=' + str(len(ct_field))
+face_raw = ''
+try:
+    face_raw = safe_string(allQuestions['alias_face_store'].val).strip()
+except Exception as face_exc:
+    print 'DBG face_raw exception: ' + str(face_exc)
+if face_raw:
+    face_raw = face_raw.replace('&amp;quot;', '"').replace('&amp;#x5B;', '[').replace('&amp;#x5D;', ']')
+print 'DBG face_raw len=' + str(len(face_raw)) + ' preview=' + repr(face_raw[:60] if face_raw else '')
+face_field = ''
+if face_raw and face_raw.startswith('{'):
+    face_field = ', "face_data": ' + face_raw
+    print 'DBG face_field set ok len=' + str(len(face_field))
+p.data = u"""
+{
+  "survey_id": "%s",
+  "participant_id": "%s",
+  "questions": [%s],
+  "responses": [%s],
+  "include_probes": true%s%s%s
+}
+""" % (
+    jescape(p.alias_client_dict['survey_id']),
+    jescape(p.alias_client_dict['participant_id']),
+    u','.join(questions_json),
+    u','.join(responses_json),
+    ks_field,
+    ct_field,
+    face_field
+)
+p.data = p.data.strip().encode('utf-8')
+print p.data
+</exec>
+<logic
+  label="alias_api_test"
+  cond="p.alias_client_dict['num_non_empty'] != 0"
+  api:data="p.data"
+  api:headers="p.headers"
+  api:method="POST"
+  api:url="https://open-qa.onrender.com/v1/check"
+  sst="0"
+  uses="api.1"/>
+<exec sst="0">
+def checks_array_to_string(array):
+    return ', '.join(map(str, array)) if array else "None"
+def stringify(val):
+    if val is None:
+        return "None"
+    try:
+        return unicode(val)
+    except:
+        try:
+            return str(val)
+        except:
+            return "None"
+raw = alias_api_test.r
+if isinstance(raw, dict):
+    r = raw
+else:
+    r = {}
+checks_map = r.get('checks', {})
+groups_map = r.get('response_groups', {})
+effort_map = r.get('effort_ratings', {})
+auth_map = r.get('authenticity_scores', {})
+probe_map = r.get('followup_probes', {})
+status_val = 'UNKNOWN'
+try:
+    status_val = alias_api_test.status
+except:
+    try:
+        status_val = alias_api_test.status_code
+    except:
+        try:
+            status_val = alias_api_test.code
+        except:
+            status_val = 'UNKNOWN'
+# Reset all questions first
+for label in p.alias_client_dict['question_labels']:
+    allQuestions[label].d1.val = False
+    allQuestions[label].d2.val = "None"
+    allQuestions[label].d3.val = 0
+    allQuestions[label].d4.val = "NA"
+    allQuestions[label].d5.val = stringify(status_val)
+    allQuestions[label].d6.val = "NA"
+# Punch API results
+for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
+    key = str(i)
+    flag_array = checks_map.get(key, [])
+    flag_str = checks_array_to_string(flag_array)
+    allQuestions[label].d1.val = flag_str != "None"
+    allQuestions[label].d2.val = flag_str
+    allQuestions[label].d3.val = groups_map.get(key, 0)
+    allQuestions[label].d4.val = effort_map.get(key, 'NA')
+    allQuestions[label].d5.val = stringify(status_val)
+    allQuestions[label].d6.val = stringify(auth_map.get(key, 'NA'))
+# Store probe texts (mapped back to question label position)
+probe_texts = ['', '', '']
+for i, label in enumerate(p.alias_client_dict.get('payload_labels', [])):
+    key = str(i)
+    probe_text = stringify(probe_map.get(key, ''))
+    if probe_text in ('None', 'null', 'none', ''):
+        probe_text = ''
+    idx = p.alias_client_dict['question_labels'].index(label)
+    # NOTE: Decipher exec uses `le` / `lt` instead of `<=` / `<` for comparisons
+    if 0 le idx lt 3:
+        probe_texts[idx] = probe_text
+# Survey-level holder
+potentia_alias_data.d0.val = stringify(raw)
+potentia_alias_data.d1.val = r.get('error', False)
+potentia_alias_data.d2.val = stringify(effort_map)
+potentia_alias_data.d3.val = stringify(checks_map)
+potentia_alias_data.d4.val = stringify(groups_map)
+potentia_alias_data.d5.val = p.alias_client_dict['survey_id']
+potentia_alias_data.d6.val = p.alias_client_dict['participant_id']
+potentia_alias_data.d7.val = p.alias_client_dict['num_non_empty']
+potentia_alias_data.d8.val = stringify(status_val)
+potentia_alias_data.d9.val = stringify(auth_map)
+potentia_alias_data.d10.val = probe_texts[0]
+potentia_alias_data.d11.val = probe_texts[1]
+potentia_alias_data.d12.val = probe_texts[2]
+potentia_alias_data.d13.val = stringify(r.get('keystroke_scores', {}))
+potentia_alias_data.d14.val = stringify(r.get('cursor_scores', {}))
+potentia_alias_data.d15.val = stringify(r.get('face_scores', {}))
+print 'DBG sent=' + str(p.data)[:200]
+print 'DBG ks_in_payload=' + str('keystrokes' in str(p.data))
+print raw
+print status_val
+</exec>
+<text
+  label="potentia_alias_data"
+  size="120"
+  where="execute,survey,report">
+  <title>alias data holder</title>
+  <row label="d0">alias-raw</row>
+  <row label="d1">alias-error</row>
+  <row label="d2">alias-effort_ratings</row>
+  <row label="d3">alias-checks</row>
+  <row label="d4">alias-response_groups</row>
+  <row label="d5">alias-survey_id</row>
+  <row label="d6">alias-participant_id</row>
+  <row label="d7">alias-num_non_empty</row>
+  <row label="d8">alias-status</row>
+  <row label="d9">alias-authenticity_scores</row>
+  <row label="d10">alias-probe_T1</row>
+  <row label="d11">alias-probe_T2</row>
+  <row label="d12">alias-probe_T3</row>
+  <row label="d13">alias-keystroke_scores</row>
+  <row label="d14">alias-cursor_scores</row>
+  <row label="d15">alias-face_scores</row>
+</text>
+
+<!-- ======================================================
+     PROBE PAGE — shown only when the API returns follow-up
+     questions. All probes are optional. If no probes are
+     generated, all three conditions are false and Decipher
+     auto-advances past this page.
+     ====================================================== -->
+<textarea
+  label="P1"
+  height="10"
+  optional="1"
+  width="50"
+  cond="allQuestions['potentia_alias_data'].d10.val not in ('', 'None')">
+  <!-- NOTE: Decipher pipe syntax uses ${} not [pipe: ...] -->
+  <title>${potentia_alias_data.d10}</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+</textarea>
+<textarea
+  label="P2"
+  height="10"
+  optional="1"
+  width="50"
+  cond="allQuestions['potentia_alias_data'].d11.val not in ('', 'None')">
+  <title>${potentia_alias_data.d11}</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+</textarea>
+<textarea
+  label="P3"
+  height="10"
+  optional="1"
+  width="50"
+  cond="allQuestions['potentia_alias_data'].d12.val not in ('', 'None')">
+  <title>${potentia_alias_data.d12}</title>
+  <comment>Please type in</comment>
+  <row label="response"/>
+</textarea>
+<suspend/>

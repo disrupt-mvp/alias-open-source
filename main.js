@@ -1,7 +1,10 @@
 const he = require('he');
 const { levenshteinDistance, longestCommonSubstring } = require('./helpers/string-utils');
-const { openAIGroupResponse, openAIEffortCategorization } = require('./helpers/openai-utils');
+const { openAIGroupResponse, openAIEffortCategorization, openAISentimentAnalysis, openAIThemeExtraction, openAIPIIDetection, openAIGenerateProbe, openAITranslate, openAIHumanityScore } = require('./helpers/openai-utils');
 const { checkForCrossDuplicateResponses, checkIfMatch } = require('./helpers/cross-duplicate-utils');
+const { extractAllKeystrokeFeatures, computeKeystrokeScore } = require('./helpers/keystroke-utils');
+const { extractAllCursorFeatures, computeCursorScore } = require('./helpers/cursor-trace-utils');
+const { extractAllFaceFeatures, computeFaceScore } = require('./helpers/face-utils');
 const { isJsonString, parseQueryString, parseJSON } = require('./helpers/json-utils');
 const config = require('./config');
 
@@ -99,7 +102,7 @@ exports.handler = async function (event, context) {
 
         // Parse the body
         problemParsingResponse = true;
-        let { questions, survey_id, participant_id, responses, low_effort_threshold } = parsingFunction(event.body);
+        let { questions, survey_id, participant_id, responses, low_effort_threshold, include_sentiment, include_themes, include_pii, include_probes, include_translation, keystrokes, cursor_trace, face_data } = parsingFunction(event.body);
         const lowEffortThreshold = low_effort_threshold || 0;
         problemParsingResponse = false;
 
@@ -109,12 +112,12 @@ exports.handler = async function (event, context) {
             .map(([k]) => k);
         if (missing.length) throw new Error(`Missing ${missing.join(', ')}`);
 
-        // If type of questions or is not object, raise error
+        // If type of questions or responses is not object/array, raise error
         const nonObjects = Object.entries({ questions, responses })
             .filter(([, v]) => v === null || typeof v !== 'object')
             .map(([k]) => k);
         if (nonObjects.length) {
-            throw new Error(`The following fields must be objects: ${nonObjects.join(', ')}`);
+            throw new Error(`The following fields must be objects or arrays: ${nonObjects.join(', ')}`);
         }
 
         // If survey_id or participant_id are not strings, raise error
@@ -131,6 +134,13 @@ exports.handler = async function (event, context) {
             throw new Error(errorText);
         }
 
+        // Extract keystroke features synchronously before async work (keystrokes payload is optional)
+        const allKeystrokeFeatures = keystrokes ? extractAllKeystrokeFeatures(keystrokes) : null;
+        // Extract cursor features synchronously (cursor_trace payload is optional)
+        const allCursorFeatures = cursor_trace ? extractAllCursorFeatures(cursor_trace) : null;
+        // Extract face features synchronously (face_data payload is optional — only present when FACE_ANALYSIS_ENABLED=true)
+        const allFaceFeatures = face_data ? extractAllFaceFeatures(face_data) : null;
+
         // Clean responses with convertHTMLEntities
         Object.keys(responses).forEach(id => {
             responses[id] = convertHTMLEntities(responses[id]);
@@ -142,36 +152,75 @@ exports.handler = async function (event, context) {
             cleanedResponses[id] = cleanFinalStateString(responses[id]);
         });
 
-        // Start duplication promise
+        // Start duplication promise (uses original responses — string-distance works across languages)
         const duplicateResponsePromise = checkForCrossDuplicateResponses(cleanedResponses, survey_id);
 
-        // Start categorization but do not wait for it to complete
         const uniqueIds = Object.keys(questions);
+
+        // Translation step: run first in parallel so translated text is available for all AI analysis
+        const translationResults = include_translation ? await Promise.all(
+            uniqueIds.map(id =>
+                openAITranslate(responses[id]).then(({ result }) => ({ id, result }))
+            )
+        ) : [];
+
+        // Build effectiveResponses: translated text when requested, original otherwise
+        const effectiveResponses = Object.assign({}, responses);
+        if (include_translation) {
+            translationResults.forEach(({ id, result }) => {
+                if (result) effectiveResponses[id] = result;
+            });
+        }
+
+        // Start AI analysis using effectiveResponses (translated when requested)
         const categorizationPromises = uniqueIds.map(id => {
-            return openAIGroupResponse(questions[id], responses[id]).then(({ result }) => { return { id, result }} );
+            return openAIGroupResponse(questions[id], effectiveResponses[id]).then(({ result }) => { return { id, result }} );
         });
         const lowEffortPromises = uniqueIds.map(id => {
-            return openAIEffortCategorization(questions[id], responses[id]).then(({ result }) => { return { id, result }} );
+            return openAIEffortCategorization(questions[id], effectiveResponses[id]).then(({ result }) => { return { id, result }} );
         });
+
+        // Optional QA feature promises (only launched if requested)
+        const sentimentPromises = include_sentiment ? uniqueIds.map(id => {
+            return openAISentimentAnalysis(questions[id], effectiveResponses[id]).then(({ result }) => ({ id, result }));
+        }) : [];
+
+        const themePromises = include_themes ? uniqueIds.map(id => {
+            return openAIThemeExtraction(questions[id], effectiveResponses[id]).then(({ result }) => ({ id, result }));
+        }) : [];
+
+        const piiPromises = include_pii ? uniqueIds.map(id => {
+            return openAIPIIDetection(questions[id], effectiveResponses[id]).then(({ result }) => ({ id, result }));
+        }) : [];
+
+        const probePromises = include_probes ? uniqueIds.map(id => {
+            return openAIGenerateProbe(questions[id], effectiveResponses[id]).then(({ result }) => ({ id, result }));
+        }) : [];
 
         const selfDuplicateResponses = checkForSelfDuplicateResponses(cleanedResponses);
 
         // Wait for duplication results from duplicatedResponsesPromise
         const { duplicateResponses, responseGroups } = await duplicateResponsePromise;
 
-        // Wait for categorization results
-        const openAIResults = await Promise.all(categorizationPromises);
-        const lowEffortResults = await Promise.all(lowEffortPromises);
+        // Wait for all AI results in parallel
+        const [openAIResults, lowEffortResults, sentimentResults, themeResults, piiResults, probeResults] = await Promise.all([
+            Promise.all(categorizationPromises),
+            Promise.all(lowEffortPromises),
+            Promise.all(sentimentPromises),
+            Promise.all(themePromises),
+            Promise.all(piiPromises),
+            Promise.all(probePromises),
+        ]);
 
         // Initialize checks, effort ratings and categorization results
         const checks = {};
         uniqueIds.forEach(id => { checks[id] = [] });
         const effortRatings = {};
-        const failureTypes = ["Profane", "Off-topic", 'Gibberish', 'GPT'];
+        const failureTypes = ["profane", "off-topic", "gibberish", "gpt"];
 
         // Loop through the results and categorize them
         Object.keys(questions).forEach(id => {
-            // -- OPenai categorizations --
+            // -- OpenAI categorizations --
             const openAIResult = openAIResults.find(result => result.id === id);
             // Make sure result exists and is string
             if (openAIResult && typeof openAIResult.result === 'string') {
@@ -195,6 +244,14 @@ exports.handler = async function (event, context) {
             } else {
                 effortRatings[id] = 0;
             };
+
+            // -- PII check (add to checks array if PII is detected) --
+            if (include_pii) {
+                const piiResult = piiResults.find(result => result.id === id);
+                if (piiResult && typeof piiResult.result === 'string' && piiResult.result.toLowerCase() !== 'none') {
+                    checks[id].push('Contains PII');
+                }
+            }
         });
 
         // Add cross duplicate response to checks
@@ -209,11 +266,83 @@ exports.handler = async function (event, context) {
             if (selfDuplicateResponses[id]) checks[id].push('Self-duplicate response');
         });
 
+        // Wave 2: humanity score (needs checks + effort from wave 1; runs in parallel per field)
+        const hasBehaviouralData = allKeystrokeFeatures || allCursorFeatures || allFaceFeatures;
+        const humanityResults = hasBehaviouralData ? await Promise.all(
+            uniqueIds.map(id =>
+                openAIHumanityScore(
+                    questions[id],
+                    effectiveResponses[id],
+                    allKeystrokeFeatures ? (allKeystrokeFeatures[id] || null) : null,
+                    allCursorFeatures ? (allCursorFeatures[id] || null) : null,
+                    checks[id],
+                    effortRatings[id],
+                    allFaceFeatures ? (allFaceFeatures[id] || null) : null
+                ).then(({ result }) => ({ id, result }))
+            )
+        ) : [];
+
+        const authenticityScores = hasBehaviouralData ? Object.fromEntries(
+            humanityResults.map(({ id, result }) => [id, parseInt(result, 10) || 50])
+        ) : undefined;
+
+        // Rule-based per-signal scores (no extra AI calls)
+        const keystrokeScores = allKeystrokeFeatures ? Object.fromEntries(
+            uniqueIds.map(id => [id, computeKeystrokeScore(allKeystrokeFeatures[id] || null)])
+        ) : undefined;
+
+        const cursorScores = allCursorFeatures ? Object.fromEntries(
+            uniqueIds.map(id => [id, computeCursorScore(allCursorFeatures[id] || null)])
+        ) : undefined;
+
+        const faceScores = allFaceFeatures ? Object.fromEntries(
+            uniqueIds.map(id => [id, computeFaceScore(allFaceFeatures[id] || null)])
+        ) : undefined;
+
+        // Build optional result maps
+        const sentimentRatings = include_sentiment ? Object.fromEntries(
+            sentimentResults.map(({ id, result }) => [id, result])
+        ) : undefined;
+
+        const themes = include_themes ? Object.fromEntries(
+            themeResults.map(({ id, result }) => {
+                const cleaned = result && result.toLowerCase() !== 'none' ? result.split(',').map(t => t.trim()).filter(Boolean) : [];
+                return [id, cleaned];
+            })
+        ) : undefined;
+
+        const piiFlags = include_pii ? Object.fromEntries(
+            piiResults.map(({ id, result }) => {
+                const types = result && result.toLowerCase() !== 'none' ? result.split(',').map(t => t.trim()).filter(Boolean) : [];
+                return [id, types];
+            })
+        ) : undefined;
+
+        const followupProbes = include_probes ? Object.fromEntries(
+            probeResults.map(({ id, result }) => {
+                const probe = result && result.toLowerCase() !== 'none' ? result : null;
+                return [id, probe];
+            })
+        ) : undefined;
+
+        const translations = include_translation ? Object.fromEntries(
+            translationResults.map(({ id, result }) => [id, result || responses[id]])
+        ) : undefined;
+
         const returnBody = {
             error: false,
             checks,
             response_groups: responseGroups,
             effort_ratings: effortRatings,
+            ...(keystrokeScores !== undefined && { keystroke_scores: keystrokeScores }),
+            ...(cursorScores !== undefined && { cursor_scores: cursorScores }),
+            ...(faceScores !== undefined && { face_scores: faceScores }),
+            ...(authenticityScores !== undefined && { authenticity_scores: authenticityScores }),
+            ...(sentimentRatings !== undefined && { sentiment_ratings: sentimentRatings }),
+            ...(themes !== undefined && { themes }),
+            ...(piiFlags !== undefined && { pii_flags: piiFlags }),
+            ...(followupProbes !== undefined && { followup_probes: followupProbes }),
+            ...(translations !== undefined && { translations }),
         };
 
         return {
